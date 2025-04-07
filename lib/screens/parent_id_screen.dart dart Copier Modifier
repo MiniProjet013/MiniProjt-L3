@@ -1,0 +1,76 @@
+import 'package:flutter/material.dart';
+import 'parent_home_screen.dart';
+
+class ParentIdScreen extends StatefulWidget {
+  @override
+  _ParentIdScreenState createState() => _ParentIdScreenState();
+}
+
+class _ParentIdScreenState extends State<ParentIdScreen> {
+  final TextEditingController idController = TextEditingController();
+  final List<String> validIds = ["E1234", "E5678", "E9101"]; // ✅ قاعدة بيانات محلية للأبناء
+
+  void _validateAndProceed() {
+    String enteredId = idController.text.trim();
+
+    if (enteredId.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("Veuillez entrer un ID élève."), backgroundColor: Colors.red),
+      );
+    } else if (!validIds.contains(enteredId)) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("ID invalide. Veuillez réessayer."), backgroundColor: Colors.red),
+      );
+    } else {
+      // ✅ الانتقال إلى الصفحة الرئيسية للأولياء عند إدخال ID صحيح
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (context) => ParentHomeScreen(idEleve: enteredId)),
+      );
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      body: Padding(
+        padding: EdgeInsets.all(20),
+        child: Center(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(Icons.person, size: 100, color: Colors.blue), // ✅ أيقونة كبيرة للأولياء
+              SizedBox(height: 20),
+              Text(
+                "Veuillez entrer l'ID de votre enfant",
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                textAlign: TextAlign.center,
+              ),
+              SizedBox(height: 20),
+
+              // ✅ إدخال ID التلميذ
+              TextField(
+                controller: idController,
+                decoration: InputDecoration(
+                  labelText: "ID Élève",
+                  border: OutlineInputBorder(),
+                  prefixIcon: Icon(Icons.badge),
+                ),
+              ),
+              SizedBox(height: 20),
+
+              // ✅ زر متابعة
+              ElevatedButton(
+                onPressed: _validateAndProceed,
+                child: Text("SUIVANT"),
+                style: ElevatedButton.styleFrom(
+                  padding: EdgeInsets.symmetric(horizontal: 50, vertical: 15),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}

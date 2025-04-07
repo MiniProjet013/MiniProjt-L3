@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "108883015033",
+    "project_id": "gestion-primair-app",
+    "storage_bucket": "gestion-primair-app.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:108883015033:android:01251b0845f35090f52ba8",
+        "android_client_info": {
+          "package_name": "com.example.study"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyALwazQTQskuNlgVIDnbndlANu7UMI1dfs"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
