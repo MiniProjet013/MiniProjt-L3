@@ -10,36 +10,55 @@ class EmploiDuTempsScreen extends StatefulWidget {
   _EmploiDuTempsScreenState createState() => _EmploiDuTempsScreenState();
 }
 
+final Color primaryColor =Color.fromARGB(232, 238, 128, 2); // Vert plus foncé
+final Color accentColor =
+    Color.fromARGB(255, 61, 163, 3); // Orange gardé pour certains accents seulement
+final Color backgroundColor = Color(0xFFF5F5F5);
+
 class _EmploiDuTempsScreenState extends State<EmploiDuTempsScreen> {
   // Variables de sélection
   String? selectedAnneeScolaire = '2025-2026';
   List<String> selectedLevels = [];
   List<Map<String, dynamic>> selectedProfs = [];
   List<Map<String, dynamic>> selectedClasses = [];
-  
+
   // Listes de données
   final List<String> anneesScolaires = [
-    "2023-2024", "2024-2025", "2025-2026", "2026-2027", "2027-2028"
+    "2023-2024",
+    "2024-2025",
+    "2025-2026",
+    "2026-2027",
+    "2027-2028"
   ];
-  
+
   final List<String> levels = [
-    "1ère année", "2ème année", "3ème année", 
-    "4ème année", "5ème année", "6ème année"
+    "1ère année",
+    "2ème année",
+    "3ème année",
+    "4ème année",
+    "5ème année",
+    "6ème année"
   ];
-  
+
   final List<String> jours = [
-    'Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi', 'Dimanche'
+    'Lundi',
+    'Mardi',
+    'Mercredi',
+    'Jeudi',
+    'Vendredi',
+    'Samedi',
+    'Dimanche'
   ];
-  
+
   List<Map<String, dynamic>> availableProfs = [];
   List<Map<String, dynamic>> availableClasses = [];
   List<Map<String, dynamic>> emploiItems = [];
-  
+
   // États de chargement
   bool isLoadingProfs = false;
   bool isLoadingClasses = false;
   bool isSaving = false;
-  
+
   // Contrôleurs de formulaire
   final _formKey = GlobalKey<FormState>();
   TextEditingController _jourController = TextEditingController();
@@ -63,7 +82,7 @@ class _EmploiDuTempsScreenState extends State<EmploiDuTempsScreen> {
       });
       return;
     }
-    
+
     setState(() {
       isLoadingClasses = true;
     });
@@ -82,10 +101,11 @@ class _EmploiDuTempsScreenState extends State<EmploiDuTempsScreen> {
           return {
             'id': doc.id,
             'numero': data['numeroClasse'] ?? '0',
-            'niveau': data['niveauxEtude'] is List 
+            'niveau': data['niveauxEtude'] is List
                 ? (data['niveauxEtude'] as List).join(", ")
                 : data['niveauxEtude']?.toString() ?? 'Niveau inconnu',
-            'displayText': 'Classe ${data['numeroClasse']} (${data['niveauxEtude']})',
+            'displayText':
+                'Classe ${data['numeroClasse']} (${data['niveauxEtude']})',
           };
         }).toList();
 
@@ -109,21 +129,22 @@ class _EmploiDuTempsScreenState extends State<EmploiDuTempsScreen> {
       });
       return;
     }
-    
+
     setState(() {
       isLoadingProfs = true;
     });
 
     try {
       // Get the IDs of selected classes
-      final List<String> selectedClassIds = selectedClasses.map((c) => c['id'] as String).toList();
-      
+      final List<String> selectedClassIds =
+          selectedClasses.map((c) => c['id'] as String).toList();
+
       // First get the classes to find their professors
       final QuerySnapshot classesSnapshot = await FirebaseFirestore.instance
           .collection('classes')
           .where(FieldPath.documentId, whereIn: selectedClassIds)
           .get();
-      
+
       // Extract professor IDs from these classes
       final List<String> profIds = [];
       for (final doc in classesSnapshot.docs) {
@@ -133,7 +154,7 @@ class _EmploiDuTempsScreenState extends State<EmploiDuTempsScreen> {
           profIds.addAll(profsData.keys.toList());
         }
       }
-      
+
       if (profIds.isEmpty) {
         setState(() {
           availableProfs = [];
@@ -141,7 +162,7 @@ class _EmploiDuTempsScreenState extends State<EmploiDuTempsScreen> {
         });
         return;
       }
-      
+
       // Now get the professors data
       final QuerySnapshot profsSnapshot = await FirebaseFirestore.instance
           .collection('profs')
@@ -156,7 +177,8 @@ class _EmploiDuTempsScreenState extends State<EmploiDuTempsScreen> {
             'prenom': data['prenom'] ?? 'Prénom inconnu',
             'nom': data['nom'] ?? 'Nom inconnu',
             'matiere': data['matiere'] ?? 'Matière non spécifiée',
-            'displayText': '${data['prenom']} ${data['nom']} - ${data['matiere']}',
+            'displayText':
+                '${data['prenom']} ${data['nom']} - ${data['matiere']}',
           };
         }).toList();
 
@@ -197,7 +219,8 @@ class _EmploiDuTempsScreenState extends State<EmploiDuTempsScreen> {
   Future<void> _selectHeureFin() async {
     final TimeOfDay? picked = await showTimePicker(
       context: context,
-      initialTime: _heureFin ?? (_heureDebut ?? TimeOfDay.now()).replacing(minute: 30),
+      initialTime:
+          _heureFin ?? (_heureDebut ?? TimeOfDay.now()).replacing(minute: 30),
     );
     if (picked != null) {
       setState(() {
@@ -207,8 +230,8 @@ class _EmploiDuTempsScreenState extends State<EmploiDuTempsScreen> {
   }
 
   void _ajouterEmploiItem() {
-    if (_formKey.currentState!.validate() && 
-        _heureDebut != null && 
+    if (_formKey.currentState!.validate() &&
+        _heureDebut != null &&
         _heureFin != null &&
         selectedProfs.isNotEmpty &&
         selectedClasses.isNotEmpty) {
@@ -218,11 +241,13 @@ class _EmploiDuTempsScreenState extends State<EmploiDuTempsScreen> {
           'heureDebut': _heureDebut!.format(context),
           'heureFin': _heureFin!.format(context),
           'matiere': _matiereController.text,
-          'profs': List<Map<String, dynamic>>.from(selectedProfs.map((p) => {...p})),
-          'classes': List<Map<String, dynamic>>.from(selectedClasses.map((c) => {...c})),
+          'profs':
+              List<Map<String, dynamic>>.from(selectedProfs.map((p) => {...p})),
+          'classes': List<Map<String, dynamic>>.from(
+              selectedClasses.map((c) => {...c})),
           'timestamp': DateTime.now(),
         });
-        
+
         // Réinitialiser les champs
         _jourController.clear();
         _heureDebut = null;
@@ -240,7 +265,7 @@ class _EmploiDuTempsScreenState extends State<EmploiDuTempsScreen> {
   }
 
   Future<void> _saveToFirestore() async {
-    if (selectedAnneeScolaire == null || 
+    if (selectedAnneeScolaire == null ||
         selectedLevels.isEmpty ||
         selectedProfs.isEmpty ||
         selectedClasses.isEmpty ||
@@ -257,41 +282,47 @@ class _EmploiDuTempsScreenState extends State<EmploiDuTempsScreen> {
 
     try {
       final batch = FirebaseFirestore.instance.batch();
-      
+
       // Enregistrer pour chaque professeur
       for (final prof in selectedProfs) {
         final docRef = FirebaseFirestore.instance
             .collection('emplois_profs')
             .doc(prof['id']);
-            
-        batch.set(docRef, {
-          'anneeScolaire': selectedAnneeScolaire,
-          'niveaux': selectedLevels,
-          'prof': prof,
-          'classes': selectedClasses,
-          'emploi': emploiItems,
-          'lastUpdated': FieldValue.serverTimestamp(),
-        }, SetOptions(merge: true));
+
+        batch.set(
+            docRef,
+            {
+              'anneeScolaire': selectedAnneeScolaire,
+              'niveaux': selectedLevels,
+              'prof': prof,
+              'classes': selectedClasses,
+              'emploi': emploiItems,
+              'lastUpdated': FieldValue.serverTimestamp(),
+            },
+            SetOptions(merge: true));
       }
-      
+
       // Enregistrer pour chaque classe
       for (final classe in selectedClasses) {
         final docRef = FirebaseFirestore.instance
             .collection('emplois_classes')
             .doc(classe['id']);
-            
-        batch.set(docRef, {
-          'anneeScolaire': selectedAnneeScolaire,
-          'niveaux': selectedLevels,
-          'classe': classe,
-          'profs': selectedProfs,
-          'emploi': emploiItems,
-          'lastUpdated': FieldValue.serverTimestamp(),
-        }, SetOptions(merge: true));
+
+        batch.set(
+            docRef,
+            {
+              'anneeScolaire': selectedAnneeScolaire,
+              'niveaux': selectedLevels,
+              'classe': classe,
+              'profs': selectedProfs,
+              'emploi': emploiItems,
+              'lastUpdated': FieldValue.serverTimestamp(),
+            },
+            SetOptions(merge: true));
       }
-      
+
       await batch.commit();
-      
+
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Emploi du temps enregistré avec succès')),
       );
@@ -307,7 +338,7 @@ class _EmploiDuTempsScreenState extends State<EmploiDuTempsScreen> {
   }
 
   Future<void> _genererPDF() async {
-    if (selectedAnneeScolaire == null || 
+    if (selectedAnneeScolaire == null ||
         selectedLevels.isEmpty ||
         selectedProfs.isEmpty ||
         selectedClasses.isEmpty ||
@@ -330,27 +361,36 @@ class _EmploiDuTempsScreenState extends State<EmploiDuTempsScreen> {
                 level: 0,
                 child: pw.Text(
                   'Emploi du Temps',
-                  style: pw.TextStyle(fontSize: 24, fontWeight: pw.FontWeight.bold),
+                  style: pw.TextStyle(
+                      fontSize: 24, fontWeight: pw.FontWeight.bold),
                 ),
               ),
               pw.SizedBox(height: 10),
               pw.Text('Année scolaire: $selectedAnneeScolaire'),
               pw.Text('Niveaux: ${selectedLevels.join(", ")}'),
               pw.SizedBox(height: 10),
-              pw.Text('Professeurs: ${selectedProfs.map((p) => p['displayText']).join(", ")}'),
-              pw.Text('Classes: ${selectedClasses.map((c) => c['displayText']).join(", ")}'),
+              pw.Text(
+                  'Professeurs: ${selectedProfs.map((p) => p['displayText']).join(", ")}'),
+              pw.Text(
+                  'Classes: ${selectedClasses.map((c) => c['displayText']).join(", ")}'),
               pw.SizedBox(height: 20),
               pw.Table.fromTextArray(
                 context: context,
                 data: [
                   ['Jour', 'Heure', 'Matière', 'Professeurs', 'Classes'],
-                  ...emploiItems.map((item) => [
-                    item['jour'],
-                    '${item['heureDebut']} - ${item['heureFin']}',
-                    item['matiere'],
-                    (item['profs'] as List<Map<String, dynamic>>).map((p) => p['displayText']).join(", "),
-                    (item['classes'] as List<Map<String, dynamic>>).map((c) => c['displayText']).join(", "),
-                  ]).toList(),
+                  ...emploiItems
+                      .map((item) => [
+                            item['jour'],
+                            '${item['heureDebut']} - ${item['heureFin']}',
+                            item['matiere'],
+                            (item['profs'] as List<Map<String, dynamic>>)
+                                .map((p) => p['displayText'])
+                                .join(", "),
+                            (item['classes'] as List<Map<String, dynamic>>)
+                                .map((c) => c['displayText'])
+                                .join(", "),
+                          ])
+                      .toList(),
                 ],
                 cellAlignment: pw.Alignment.centerLeft,
                 headerStyle: pw.TextStyle(fontWeight: pw.FontWeight.bold),
@@ -358,7 +398,8 @@ class _EmploiDuTempsScreenState extends State<EmploiDuTempsScreen> {
               pw.SizedBox(height: 20),
               pw.Text(
                 'Généré le ${DateFormat('dd/MM/yyyy à HH:mm').format(DateTime.now())}',
-                style: pw.TextStyle(fontSize: 10, fontStyle: pw.FontStyle.italic),
+                style:
+                    pw.TextStyle(fontSize: 10, fontStyle: pw.FontStyle.italic),
               ),
             ],
           );
@@ -368,7 +409,8 @@ class _EmploiDuTempsScreenState extends State<EmploiDuTempsScreen> {
 
     await Printing.sharePdf(
       bytes: await pdf.save(),
-      filename: 'emploi_du_temps_${DateFormat('yyyyMMdd').format(DateTime.now())}.pdf',
+      filename:
+          'emploi_du_temps_${DateFormat('yyyyMMdd').format(DateTime.now())}.pdf',
     );
   }
 
@@ -376,8 +418,10 @@ class _EmploiDuTempsScreenState extends State<EmploiDuTempsScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text('Emploi du Temps', style: TextStyle(color: Colors.white)),
-        backgroundColor: Color(0xFF06E611),
+        title: Text('Emploi du Temps',
+            style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+        backgroundColor:accentColor,
+        elevation: 0,
         actions: [
           IconButton(
             icon: Icon(Icons.refresh, color: Colors.white),
@@ -397,28 +441,66 @@ class _EmploiDuTempsScreenState extends State<EmploiDuTempsScreen> {
         ],
       ),
       body: Container(
-        color: Colors.white,
+        color: backgroundColor,
         child: SingleChildScrollView(
           padding: EdgeInsets.all(16.0),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               // Sélection de l'année scolaire
-              Card(
-                color: Color(0xFFFF9900),
-                child: Padding(
-                  padding: EdgeInsets.all(16),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text('Année scolaire', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.white)),
-                      SizedBox(height: 8),
-                      DropdownButtonFormField<String>(
+              Container(
+                margin: EdgeInsets.only(bottom: 16),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(8),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.05),
+                      blurRadius: 10,
+                      offset: Offset(0, 2),
+                    ),
+                  ],
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Container(
+                      padding:
+                          EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                      decoration: BoxDecoration(
+                        color: primaryColor,
+                        borderRadius: BorderRadius.only(
+                          topLeft: Radius.circular(8),
+                          topRight: Radius.circular(8),
+                        ),
+                      ),
+                      child: Text(
+                        'Année scolaire',
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          color: Colors.white,
+                          fontSize: 16,
+                        ),
+                      ),
+                    ),
+                    Padding(
+                      padding: EdgeInsets.all(16),
+                      child: DropdownButtonFormField<String>(
                         value: selectedAnneeScolaire,
                         decoration: InputDecoration(
-                          border: OutlineInputBorder(),
-                          filled: true,
-                          fillColor: Colors.white,
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(8),
+                            borderSide: BorderSide(color: primaryColor),
+                          ),
+                          enabledBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(8),
+                            borderSide: BorderSide(color: primaryColor),
+                          ),
+                          focusedBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(8),
+                            borderSide:
+                                BorderSide(color: primaryColor, width: 2),
+                          ),
                         ),
                         items: anneesScolaires.map((annee) {
                           return DropdownMenuItem(
@@ -432,25 +514,54 @@ class _EmploiDuTempsScreenState extends State<EmploiDuTempsScreen> {
                             _fetchData();
                           });
                         },
-                        validator: (value) => value == null ? 'Veuillez sélectionner une année' : null,
+                        validator: (value) => value == null
+                            ? 'Veuillez sélectionner une année'
+                            : null,
                       ),
-                    ],
-                  ),
+                    ),
+                  ],
                 ),
               ),
-              SizedBox(height: 16),
 
               // Sélection des niveaux
-              Card(
-                color: Color(0xFFFF9900),
-                child: Padding(
-                  padding: EdgeInsets.all(16),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text('Niveaux scolaires', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.white)),
-                      SizedBox(height: 8),
-                      Wrap(
+              Container(
+                margin: EdgeInsets.only(bottom: 16),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(8),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.05),
+                      blurRadius: 10,
+                      offset: Offset(0, 2),
+                    ),
+                  ],
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Container(
+                      padding:
+                          EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                      decoration: BoxDecoration(
+                        color: primaryColor,
+                        borderRadius: BorderRadius.only(
+                          topLeft: Radius.circular(8),
+                          topRight: Radius.circular(8),
+                        ),
+                      ),
+                      child: Text(
+                        'Niveaux scolaires',
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          color: Colors.white,
+                          fontSize: 16,
+                        ),
+                      ),
+                    ),
+                    Padding(
+                      padding: EdgeInsets.all(16),
+                      child: Wrap(
                         spacing: 8.0,
                         runSpacing: 8.0,
                         children: levels.map((level) {
@@ -471,119 +582,213 @@ class _EmploiDuTempsScreenState extends State<EmploiDuTempsScreen> {
                               });
                             },
                             backgroundColor: Colors.white,
-                            selectedColor: Color(0xFF06E611),
+                            selectedColor: primaryColor,
+                            checkmarkColor: Colors.white,
                             labelStyle: TextStyle(
-                              color: selectedLevels.contains(level) ? Colors.white : Colors.black,
+                              color: selectedLevels.contains(level)
+                                  ? Colors.white
+                                  : Colors.black,
+                            ),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(16),
+                              side: BorderSide(
+                                color: selectedLevels.contains(level)
+                                    ? primaryColor
+                                    : Colors.grey.shade300,
+                              ),
                             ),
                           );
                         }).toList(),
                       ),
-                    ],
-                  ),
+                    ),
+                  ],
                 ),
               ),
-              SizedBox(height: 16),
 
-              // Sélection des classes
-              Card(
-                color: Color(0xFFFF9900),
-                child: Padding(
-                  padding: EdgeInsets.all(16),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text('Classes', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.white)),
-                      SizedBox(height: 8),
-                      isLoadingClasses
-                          ? Center(child: CircularProgressIndicator(color: Colors.white))
+              // Sélection des classes (avec même style)
+              Container(
+                margin: EdgeInsets.only(bottom: 16),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(8),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.05),
+                      blurRadius: 10,
+                      offset: Offset(0, 2),
+                    ),
+                  ],
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Container(
+                      padding:
+                          EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                      decoration: BoxDecoration(
+                        color: primaryColor,
+                        borderRadius: BorderRadius.only(
+                          topLeft: Radius.circular(8),
+                          topRight: Radius.circular(8),
+                        ),
+                      ),
+                      child: Text(
+                        'Classes',
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          color: Colors.white,
+                          fontSize: 16,
+                        ),
+                      ),
+                    ),
+                    Padding(
+                      padding: EdgeInsets.all(16),
+                      child: isLoadingClasses
+                          ? Center(
+                              child: CircularProgressIndicator(
+                                  color: primaryColor))
                           : availableClasses.isEmpty
-                              ? Text('Aucune classe disponible', style: TextStyle(color: Colors.white))
+                              ? Text('Aucune classe disponible')
                               : Wrap(
                                   spacing: 8.0,
                                   runSpacing: 8.0,
                                   children: availableClasses.map((classe) {
+                                    bool isSelected = selectedClasses
+                                        .any((c) => c['id'] == classe['id']);
                                     return InputChip(
                                       label: Text(classe['displayText']),
-                                      selected: selectedClasses.any((c) => c['id'] == classe['id']),
+                                      selected: isSelected,
                                       onSelected: (selected) {
                                         setState(() {
                                           if (selected) {
                                             selectedClasses.add(classe);
                                           } else {
-                                            selectedClasses.removeWhere((c) => c['id'] == classe['id']);
+                                            selectedClasses.removeWhere(
+                                                (c) => c['id'] == classe['id']);
                                           }
                                           _fetchProfsForSelectedClasses();
                                         });
                                       },
                                       backgroundColor: Colors.white,
-                                      selectedColor: Color(0xFF06E611),
+                                      selectedColor: primaryColor,
+                                      checkmarkColor: Colors.white,
                                       labelStyle: TextStyle(
-                                        color: selectedClasses.any((c) => c['id'] == classe['id']) 
-                                            ? Colors.white 
+                                        color: isSelected
+                                            ? Colors.white
                                             : Colors.black,
                                       ),
                                       avatar: CircleAvatar(
-                                        backgroundColor: Colors.transparent,
+                                        backgroundColor: isSelected
+                                            ? Colors.white
+                                            : Color(0xFFECEFF1),
                                         child: Icon(Icons.school,
                                             size: 18,
-                                            color: selectedClasses.any((c) => c['id'] == classe['id']) 
-                                                ? Colors.white 
-                                                : Colors.black),
+                                            color: isSelected
+                                                ? primaryColor
+                                                : Colors.black54),
+                                      ),
+                                      shape: RoundedRectangleBorder(
+                                        borderRadius: BorderRadius.circular(16),
+                                        side: BorderSide(
+                                          color: isSelected
+                                              ? primaryColor
+                                              : Colors.grey.shade300,
+                                        ),
                                       ),
                                     );
                                   }).toList(),
                                 ),
-                    ],
-                  ),
+                    ),
+                  ],
                 ),
               ),
-              SizedBox(height: 16),
 
-              // Sélection des professeurs
-              Card(
-                color: Color(0xFFFF9900),
-                child: Padding(
-                  padding: EdgeInsets.all(16),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
+              // Sélection des professeurs (avec même style)
+              Container(
+                margin: EdgeInsets.only(bottom: 16),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(8),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.05),
+                      blurRadius: 10,
+                      offset: Offset(0, 2),
+                    ),
+                  ],
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Container(
+                      padding:
+                          EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                      decoration: BoxDecoration(
+                        color: primaryColor,
+                        borderRadius: BorderRadius.only(
+                          topLeft: Radius.circular(8),
+                          topRight: Radius.circular(8),
+                        ),
+                      ),
+                      child: Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          Text('Professeurs', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.white)),
+                          Text(
+                            'Professeurs',
+                            style: TextStyle(
+                              fontWeight: FontWeight.bold,
+                              color: Colors.white,
+                              fontSize: 16,
+                            ),
+                          ),
                           ElevatedButton.icon(
-                            icon: Icon(Icons.refresh, color: Colors.white, size: 16),
-                            label: Text('Charger', style: TextStyle(color: Colors.white)),
+                            icon: Icon(Icons.refresh,
+                                color: primaryColor, size: 16),
+                            label: Text('Charger',
+                                style: TextStyle(color: primaryColor)),
                             onPressed: _fetchProfsForSelectedClasses,
                             style: ElevatedButton.styleFrom(
-                              backgroundColor: Color(0xFF06E611),
-                              padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                              backgroundColor: Colors.white,
+                              elevation: 0,
+                              padding: EdgeInsets.symmetric(
+                                  horizontal: 12, vertical: 4),
                             ),
                           ),
                         ],
                       ),
-                      SizedBox(height: 8),
-                      isLoadingProfs
-                          ? Center(child: CircularProgressIndicator(color: Colors.white))
+                    ),
+                    Padding(
+                      padding: EdgeInsets.all(16),
+                      child: isLoadingProfs
+                          ? Center(
+                              child: CircularProgressIndicator(
+                                  color: primaryColor))
                           : selectedClasses.isEmpty
-                              ? Text('Veuillez sélectionner des classes d\'abord', style: TextStyle(color: Colors.white))
+                              ? Text(
+                                  'Veuillez sélectionner des classes d\'abord')
                               : availableProfs.isEmpty
-                                  ? Text('Aucun professeur trouvé pour ces classes', style: TextStyle(color: Colors.white))
+                                  ? Text(
+                                      'Aucun professeur trouvé pour ces classes')
                                   : Container(
                                       height: 200,
                                       decoration: BoxDecoration(
-                                        color: Colors.white,
-                                        borderRadius: BorderRadius.circular(4),
+                                        border: Border.all(
+                                            color: Colors.grey.shade300),
+                                        borderRadius: BorderRadius.circular(8),
                                       ),
                                       child: ListView.builder(
                                         shrinkWrap: true,
                                         itemCount: availableProfs.length,
                                         itemBuilder: (context, index) {
                                           final prof = availableProfs[index];
+                                          final isSelected = selectedProfs.any(
+                                              (p) => p['id'] == prof['id']);
                                           return CheckboxListTile(
-                                            title: Text('${prof['prenom']} ${prof['nom']}'),
-                                            subtitle: Text('${prof['matiere']}'),
-                                            value: selectedProfs.any((p) => p['id'] == prof['id']),
+                                            title: Text(
+                                                '${prof['prenom']} ${prof['nom']}'),
+                                            subtitle:
+                                                Text('${prof['matiere']}'),
+                                            value: isSelected,
                                             onChanged: (bool? selected) {
                                               setState(() {
                                                 if (selected == true) {
@@ -591,189 +796,350 @@ class _EmploiDuTempsScreenState extends State<EmploiDuTempsScreen> {
                                                   selectedProfs.add(prof);
                                                   _updateMatiereForSelectedProf();
                                                 } else {
-                                                  selectedProfs.removeWhere((p) => p['id'] == prof['id']);
+                                                  selectedProfs.removeWhere(
+                                                      (p) =>
+                                                          p['id'] ==
+                                                          prof['id']);
                                                   _matiereController.clear();
                                                 }
                                               });
                                             },
-                                            activeColor: Color(0xFF06E611),
-                                            tileColor: Colors.white,
+                                            activeColor: primaryColor,
+                                            checkColor: Colors.white,
+                                            tileColor: isSelected
+                                                ? primaryColor.withOpacity(0.1)
+                                                : null,
+                                            shape: RoundedRectangleBorder(
+                                              borderRadius:
+                                                  BorderRadius.circular(0),
+                                            ),
                                           );
                                         },
                                       ),
                                     ),
-                    ],
-                  ),
+                    ),
+                  ],
                 ),
               ),
-              SizedBox(height: 16),
 
-              // Formulaire pour ajouter un cours
-              Card(
-                color: Color(0xFFFF9900),
-                child: Padding(
-                  padding: EdgeInsets.all(16),
-                  child: Form(
-                    key: _formKey,
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: [
-                        Text('Ajouter un cours', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.white)),
-                        SizedBox(height: 16),
-                        
-                        DropdownButtonFormField<String>(
-                          value: _jourController.text.isNotEmpty ? _jourController.text : null,
-                          decoration: InputDecoration(
-                            labelText: 'Jour',
-                            border: OutlineInputBorder(),
-                            filled: true,
-                            fillColor: Colors.white,
+              // Formulaire pour ajouter un cours (avec même style)
+              Container(
+                margin: EdgeInsets.only(bottom: 16),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(8),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.05),
+                      blurRadius: 10,
+                      offset: Offset(0, 2),
+                    ),
+                  ],
+                ),
+                child: Form(
+                  key: _formKey,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      Container(
+                        padding:
+                            EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                        decoration: BoxDecoration(
+                          color: primaryColor,
+                          borderRadius: BorderRadius.only(
+                            topLeft: Radius.circular(8),
+                            topRight: Radius.circular(8),
                           ),
-                          items: jours.map((jour) {
-                            return DropdownMenuItem(
-                              value: jour,
-                              child: Text(jour),
-                            );
-                          }).toList(),
-                          onChanged: (value) {
-                            setState(() {
-                              _jourController.text = value!;
-                            });
-                          },
-                          validator: (value) => value == null ? 'Veuillez sélectionner un jour' : null,
                         ),
-                        SizedBox(height: 12),
-                        
-                        Row(
+                        child: Text(
+                          'Ajouter un cours',
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            color: Colors.white,
+                            fontSize: 16,
+                          ),
+                        ),
+                      ),
+                      Padding(
+                        padding: EdgeInsets.all(16),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
                           children: [
-                            Expanded(
-                              child: InkWell(
-                                onTap: _selectHeureDebut,
-                                child: InputDecorator(
-                                  decoration: InputDecoration(
-                                    labelText: 'Heure de début',
-                                    border: OutlineInputBorder(),
-                                    filled: true,
-                                    fillColor: Colors.white,
+                            DropdownButtonFormField<String>(
+                              value: _jourController.text.isNotEmpty
+                                  ? _jourController.text
+                                  : null,
+                              decoration: InputDecoration(
+                                labelText: 'Jour',
+                                border: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                enabledBorder: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(8),
+                                  borderSide:
+                                      BorderSide(color: Colors.grey.shade300),
+                                ),
+                                focusedBorder: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(8),
+                                  borderSide:
+                                      BorderSide(color: primaryColor, width: 2),
+                                ),
+                                labelStyle:
+                                    TextStyle(color: Colors.grey.shade700),
+                              ),
+                              items: jours.map((jour) {
+                                return DropdownMenuItem(
+                                  value: jour,
+                                  child: Text(jour),
+                                );
+                              }).toList(),
+                              onChanged: (value) {
+                                setState(() {
+                                  _jourController.text = value!;
+                                });
+                              },
+                              validator: (value) => value == null
+                                  ? 'Veuillez sélectionner un jour'
+                                  : null,
+                            ),
+                            SizedBox(height: 16),
+                            Row(
+                              children: [
+                                Expanded(
+                                  child: InkWell(
+                                    onTap: _selectHeureDebut,
+                                    child: InputDecorator(
+                                      decoration: InputDecoration(
+                                        labelText: 'Heure de début',
+                                        border: OutlineInputBorder(
+                                          borderRadius:
+                                              BorderRadius.circular(8),
+                                        ),
+                                        enabledBorder: OutlineInputBorder(
+                                          borderRadius:
+                                              BorderRadius.circular(8),
+                                          borderSide: BorderSide(
+                                              color: Colors.grey.shade300),
+                                        ),
+                                        focusedBorder: OutlineInputBorder(
+                                          borderRadius:
+                                              BorderRadius.circular(8),
+                                          borderSide: BorderSide(
+                                              color: primaryColor, width: 2),
+                                        ),
+                                        labelStyle: TextStyle(
+                                            color: Colors.grey.shade700),
+                                        suffixIcon: Icon(Icons.access_time,
+                                            color: primaryColor),
+                                      ),
+                                      child: Text(
+                                        _heureDebut != null
+                                            ? _heureDebut!.format(context)
+                                            : 'Sélectionner',
+                                        style: TextStyle(
+                                          color: _heureDebut != null
+                                              ? Colors.black
+                                              : Colors.grey.shade600,
+                                        ),
+                                      ),
+                                    ),
                                   ),
-                                  child: Text(
-                                    _heureDebut != null 
-                                      ? _heureDebut!.format(context)
-                                      : 'Sélectionner une heure',
+                                ),
+                                SizedBox(width: 16),
+                                Expanded(
+                                  child: InkWell(
+                                    onTap: _selectHeureFin,
+                                    child: InputDecorator(
+                                      decoration: InputDecoration(
+                                        labelText: 'Heure de fin',
+                                        border: OutlineInputBorder(
+                                          borderRadius:
+                                              BorderRadius.circular(8),
+                                        ),
+                                        enabledBorder: OutlineInputBorder(
+                                          borderRadius:
+                                              BorderRadius.circular(8),
+                                          borderSide: BorderSide(
+                                              color: Colors.grey.shade300),
+                                        ),
+                                        focusedBorder: OutlineInputBorder(
+                                          borderRadius:
+                                              BorderRadius.circular(8),
+                                          borderSide: BorderSide(
+                                              color: primaryColor, width: 2),
+                                        ),
+                                        labelStyle: TextStyle(
+                                            color: Colors.grey.shade700),
+                                        suffixIcon: Icon(Icons.access_time,
+                                            color: primaryColor),
+                                      ),
+                                      child: Text(
+                                        _heureFin != null
+                                            ? _heureFin!.format(context)
+                                            : 'Sélectionner',
+                                        style: TextStyle(
+                                          color: _heureFin != null
+                                              ? Colors.black
+                                              : Colors.grey.shade600,
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                            SizedBox(height: 16),
+                            TextFormField(
+                              controller: _matiereController,
+                              decoration: InputDecoration(
+                                labelText: 'Matière',
+                                border: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                enabledBorder: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(8),
+                                  borderSide:
+                                      BorderSide(color: Colors.grey.shade300),
+                                ),
+                                focusedBorder: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(8),
+                                  borderSide:
+                                      BorderSide(color: primaryColor, width: 2),
+                                ),
+                                labelStyle:
+                                    TextStyle(color: Colors.grey.shade700),
+                                filled: true,
+                                fillColor: Colors.grey.shade50,
+                              ),
+                              readOnly: true,
+                              validator: (value) => value!.isEmpty
+                                  ? 'Veuillez sélectionner un professeur pour définir la matière'
+                                  : null,
+                            ),
+                            SizedBox(height: 24),
+                            ElevatedButton(
+                              onPressed: _ajouterEmploiItem,
+                              child: Padding(
+                                padding: EdgeInsets.symmetric(vertical: 12),
+                                child: Text(
+                                  'Ajouter le cours',
+                                  style: TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.bold,
                                   ),
                                 ),
                               ),
-                            ),
-                            SizedBox(width: 12),
-                            Expanded(
-                              child: InkWell(
-                                onTap: _selectHeureFin,
-                                child: InputDecorator(
-                                  decoration: InputDecoration(
-                                    labelText: 'Heure de fin',
-                                    border: OutlineInputBorder(),
-                                    filled: true,
-                                    fillColor: Colors.white,
-                                  ),
-                                  child: Text(
-                                    _heureFin != null 
-                                      ? _heureFin!.format(context)
-                                      : 'Sélectionner une heure',
-                                  ),
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: primaryColor,
+                                elevation: 0,
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(8),
                                 ),
                               ),
                             ),
                           ],
                         ),
-                        SizedBox(height: 12),
-                        
-                        TextFormField(
-                          controller: _matiereController,
-                          decoration: InputDecoration(
-                            labelText: 'Matière',
-                            border: OutlineInputBorder(),
-                            filled: true,
-                            fillColor: Colors.white,
-                          ),
-                          readOnly: true,
-                          validator: (value) => value!.isEmpty ? 'Veuillez sélectionner un professeur pour définir la matière' : null,
-                        ),
-                        SizedBox(height: 16),
-                        
-                        ElevatedButton(
-                          onPressed: _ajouterEmploiItem,
-                          child: Text('Ajouter le cours', style: TextStyle(color: Colors.white)),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: Color(0xFF06E611),
-                            padding: EdgeInsets.symmetric(vertical: 16),
-                          ),
-                        ),
-                      ],
-                    ),
+                      ),
+                    ],
                   ),
                 ),
               ),
-              SizedBox(height: 16),
 
-              // Liste des cours ajoutés
+              // Liste des cours ajoutés (avec même style)
               if (emploiItems.isNotEmpty) ...[
-                Card(
-                  color: Color(0xFFFF9900),
-                  child: Padding(
-                    padding: EdgeInsets.all(16),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
+                Container(
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(8),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.05),
+                        blurRadius: 10,
+                        offset: Offset(0, 2),
+                      ),
+                    ],
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Container(
+                        padding:
+                            EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                        decoration: BoxDecoration(
+                          color: primaryColor,
+                          borderRadius: BorderRadius.only(
+                            topLeft: Radius.circular(8),
+                            topRight: Radius.circular(8),
+                          ),
+                        ),
+                        child: Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
-                            Text('Cours programmés (${emploiItems.length})', 
-                                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.white)),
+                            Text(
+                              'Cours programmés (${emploiItems.length})',
+                              style: TextStyle(
+                                fontWeight: FontWeight.bold,
+                                color: Colors.white,
+                                fontSize: 16,
+                              ),
+                            ),
                             if (isSaving)
                               CircularProgressIndicator(color: Colors.white)
                             else
                               ElevatedButton(
                                 onPressed: _saveToFirestore,
-                                child: Text('Enregistrer tout', style: TextStyle(color: Colors.white)),
+                                child: Text('Enregistrer',
+                                    style: TextStyle(color: primaryColor)),
                                 style: ElevatedButton.styleFrom(
-                                  backgroundColor: Color(0xFF06E611),
+                                  backgroundColor: Colors.white,
+                                  elevation: 0,
+                                  padding: EdgeInsets.symmetric(
+                                      horizontal: 16, vertical: 8),
                                 ),
                               ),
                           ],
                         ),
-                        SizedBox(height: 8),
-                        ListView.builder(
+                      ),
+                      Padding(
+                        padding: EdgeInsets.all(8),
+                        child: ListView.separated(
                           shrinkWrap: true,
                           physics: NeverScrollableScrollPhysics(),
                           itemCount: emploiItems.length,
+                          separatorBuilder: (context, index) =>
+                              Divider(height: 1),
                           itemBuilder: (context, index) {
                             final item = emploiItems[index];
-                            return Card(
-                              margin: EdgeInsets.symmetric(vertical: 4),
-                              child: ListTile(
-                                title: Text('${item['jour']} - ${item['heureDebut']} à ${item['heureFin']}',
-                                    style: TextStyle(fontWeight: FontWeight.bold)),
-                                subtitle: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text('Matière: ${item['matiere']}'),
-                                    Text('Professeurs: ${(item['profs'] as List<Map<String, dynamic>>).map((p) => "${p['prenom']} ${p['nom']}").join(", ")}'),
-                                    Text('Classes: ${(item['classes'] as List<Map<String, dynamic>>).map((c) => c['displayText']).join(", ")}'),
-                                  ],
-                                ),
-                                trailing: IconButton(
-                                  icon: Icon(Icons.delete, color: Colors.red),
-                                  onPressed: () => _supprimerEmploiItem(index),
-                                ),
+                            return ListTile(
+                              contentPadding: EdgeInsets.symmetric(
+                                  horizontal: 16, vertical: 8),
+                              title: Text(
+                                '${item['jour']} - ${item['heureDebut']} à ${item['heureFin']}',
+                                style: TextStyle(fontWeight: FontWeight.bold),
+                              ),
+                              subtitle: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  SizedBox(height: 4),
+                                  Text('Matière: ${item['matiere']}'),
+                                  Text(
+                                      'Professeurs: ${(item['profs'] as List<Map<String, dynamic>>).map((p) => "${p['prenom']} ${p['nom']}").join(", ")}'),
+                                  Text(
+                                      'Classes: ${(item['classes'] as List<Map<String, dynamic>>).map((c) => c['displayText']).join(", ")}'),
+                                ],
+                              ),
+                              trailing: IconButton(
+                                icon: Icon(Icons.delete, color: Colors.red),
+                                onPressed: () => _supprimerEmploiItem(index),
                               ),
                             );
                           },
                         ),
-                      ],
-                    ),
+                      ),
+                    ],
                   ),
                 ),
-                SizedBox(height: 16),
               ],
             ],
           ),
