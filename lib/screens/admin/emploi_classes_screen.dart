@@ -10,9 +10,9 @@ class EmploiDuTempsScreen extends StatefulWidget {
   _EmploiDuTempsScreenState createState() => _EmploiDuTempsScreenState();
 }
 
-final Color primaryColor =Color.fromARGB(232, 238, 128, 2); // Vert plus foncé
-final Color accentColor =
-    Color.fromARGB(255, 61, 163, 3); // Orange gardé pour certains accents seulement
+final Color primaryColor = Color.fromARGB(232, 238, 128, 2); // Vert plus foncé
+final Color accentColor = Color.fromARGB(
+    255, 61, 163, 3); // Orange gardé pour certains accents seulement
 final Color backgroundColor = Color(0xFFF5F5F5);
 
 class _EmploiDuTempsScreenState extends State<EmploiDuTempsScreen> {
@@ -420,7 +420,7 @@ class _EmploiDuTempsScreenState extends State<EmploiDuTempsScreen> {
       appBar: AppBar(
         title: Text('Emploi du Temps',
             style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-        backgroundColor:accentColor,
+        backgroundColor: accentColor,
         elevation: 0,
         actions: [
           IconButton(
