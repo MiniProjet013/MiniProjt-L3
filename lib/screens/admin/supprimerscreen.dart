@@ -1,13 +1,13 @@
 import 'package:flutter/material.dart';
 import '../../widgets/category_card.dart';
 import '../../utils/constants.dart';
-
+import'supprimer_classe_screen.dart';
 class SupprimerScreen extends StatelessWidget {
   final List<Map<String, dynamic>> options = [
     {
       "title": "CLASSES",
       "icon": Icons.class_,
-      "route": null // إضافة شاشة حذف الأقسام لاحقًا
+      "route": SupprimerClasseScreen() // إضافة شاشة حذف الأقسام لاحقًا
     },
     {
       "title": "PROFS",
@@ -42,11 +42,14 @@ class SupprimerScreen extends StatelessWidget {
             mainAxisSpacing: 15,
             childAspectRatio: 1.2,
           ),
-          itemCount: options.length,
+         itemCount: options.length,
           itemBuilder: (context, index) {
             return GestureDetector(
               onTap: () {
-                print("Supprimer ${options[index]['title']}");
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => options[index]["route"]),
+                );
               },
               child: CategoryCard(
                 title: options[index]['title'],
