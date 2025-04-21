@@ -9,13 +9,13 @@ import 'convocations_screen.dart';
 import 'student_list_screen.dart';
 import 'portfolio_screen.dart';
 import 'examens_screen.dart';
-
+import 'emploi_du_temps.dart';
 class HomeScreen extends StatelessWidget {
   final List<Map<String, dynamic>> categories = [
     {"title": "PORTFOLIO", "icon": Icons.folder, "route": PortfolioScreen()},
-    {"title": "DEVOIRS", "icon": Icons.assignment, "route": DevoirScreen()},
+    {"title": "DEVOIRS", "icon": Icons.assignment, "route": HomeworkScreen ()},
     {"title": "NOTES", "icon": Icons.grade, "route": NotesScreen()},
-    {"title": "EMPLOI DU TEMPS", "icon": Icons.schedule},
+    {"title": "EMPLOI DU TEMPS", "icon": Icons.schedule,"route": ScheduleScreen() },
     {"title": "REMARQUES", "icon": Icons.comment, "route": RemarquesScreen()},
     {"title": "Liste d'eleves", "icon": Icons.people, "route": StudentListScreen()},
     {"title": "ABSENCES", "icon": Icons.event_busy, "route": AbsencesScreen()},

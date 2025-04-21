@@ -16,7 +16,7 @@ class AdminHomeScreen extends StatelessWidget {
     {"title": "Gestion emploi du temps", "icon": Icons.calendar_month, "route": GestionEmploiScreen()},
     {"title": "Ajouter", "icon": Icons.person_add, "route": AjouterUtilisateurScreen()},
     {"title": "Modifier",  "icon": Icons.edit, "route": ModifierScreen()}, // ✅ التوجيه لشاشة التعديل
-    {"title": "Statistique", "icon": Icons.analytics_rounded, "route": StatistiqueScreen()},
+    {"title": "Statistique", "icon": Icons.analytics_rounded, "route": StatistiquesEtablissementScreen()},
 
     {"title": "Publier des événements", "icon": Icons.event, "route": PublierEvenementScreen()},
   ];
