@@ -6,7 +6,7 @@ import 'gestion_absences_screen.dart';
 import 'gestion_emploi_screen.dart';
 import 'publier_evenement_screen.dart';
 import 'modifier_screen.dart'; 
-import 'supprimerscreen.dart';
+import 'statistiquescreen.dart';
 
 // ✅ شاشة التعديل الجديدة
 
@@ -16,7 +16,7 @@ class AdminHomeScreen extends StatelessWidget {
     {"title": "Gestion emploi du temps", "icon": Icons.calendar_month, "route": GestionEmploiScreen()},
     {"title": "Ajouter", "icon": Icons.person_add, "route": AjouterUtilisateurScreen()},
     {"title": "Modifier",  "icon": Icons.edit, "route": ModifierScreen()}, // ✅ التوجيه لشاشة التعديل
-    {"title": "Supprimer", "icon": Icons.delete, "route": SupprimerScreen()},
+    {"title": "Statistique", "icon": Icons.analytics_rounded, "route": StatistiqueScreen()},
 
     {"title": "Publier des événements", "icon": Icons.event, "route": PublierEvenementScreen()},
   ];

@@ -1,13 +1,12 @@
 import 'package:flutter/material.dart';
 import '../../widgets/category_card.dart';
 import '../../utils/constants.dart';
-import'supprimer_classe_screen.dart';
-class SupprimerScreen extends StatelessWidget {
+class StatistiqueScreen extends StatelessWidget {
   final List<Map<String, dynamic>> options = [
     {
       "title": "CLASSES",
       "icon": Icons.class_,
-      "route": SupprimerClasseScreen() // إضافة شاشة حذف الأقسام لاحقًا
+      "route": null // إضافة شاشة حذف الأقسام لاحقًا
     },
     {
       "title": "PROFS",

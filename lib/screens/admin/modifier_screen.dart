@@ -1,30 +1,31 @@
 import 'package:flutter/material.dart';
 import '../../widgets/category_card.dart';
 import '../../utils/constants.dart';
-import 'modifier_classes_screen.dart'; // ✅ استيراد شاشة تعديل الأقسام
-import 'ModifierProfsScreen.dart';  // ✅ استيراد شاشة تعديل الأساتذة
-
+import 'modifier_classes_screen.dart'; // ✅ importación de pantalla de modificación de clases
+import 'ModifierProfsScreen.dart';  // ✅ importación de pantalla de modificación de profesores
+import 'eleve_modifier_screen.dart'; // ✅ importación de pantalla de modificación de alumnos
+import 'modifier_event.dart';
 class ModifierScreen extends StatelessWidget {
   final List<Map<String, dynamic>> options = [
     {
       "title": "CLASSES",
       "icon": Icons.class_,
-      "route": ModifierClassesScreen() // ✅ توجيه إلى شاشة تعديل الأقسام
+      "route": ModifierClassesScreen() // ✅ redirección a pantalla de modificación de clases
     },
     {
       "title": "PROFS",
       "icon": Icons.person,
-      "route": ModifierProfsScreen() // ✅ توجيه إلى شاشة تعديل الأساتذة
+      "route": ModifierProfsScreen() // ✅ redirección a pantalla de modificación de profesores
     },
     {
       "title": "ELEVES",
       "icon": Icons.school,
-      "route": null
+      "route": EleveModifierScreen() // ✅ redirección a pantalla de modificación de alumnos
     },
     {
       "title": "EVENEMENTS",
       "icon": Icons.event,
-      "route": null
+      "route": ModifierEvenementsScreen()
     },
   ];
 

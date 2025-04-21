@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 class PublierEvenementScreen extends StatefulWidget {
   @override
@@ -10,10 +11,14 @@ class _PublierEvenementScreenState extends State<PublierEvenementScreen> {
   DateTime? selectedDate;
   TimeOfDay? selectedTime;
   final TextEditingController descriptionController = TextEditingController();
-  final TextEditingController dateController = TextEditingController(); // ✅ إضافة متحكم للنص
+  final TextEditingController dateController = TextEditingController();
   final TextEditingController timeController = TextEditingController();
+  bool isLoading = false;
 
   final List<String> eventTypes = ["Réunion", "Examen", "Activité", "Autre"];
+
+  // Référence à la collection Firestore
+  final CollectionReference evenementsCollection = FirebaseFirestore.instance.collection('evenements');
 
   Future<void> _selectDate() async {
     DateTime? pickedDate = await showDatePicker(
@@ -25,7 +30,7 @@ class _PublierEvenementScreenState extends State<PublierEvenementScreen> {
     if (pickedDate != null) {
       setState(() {
         selectedDate = pickedDate;
-        dateController.text = "${pickedDate.day}/${pickedDate.month}/${pickedDate.year}"; // ✅ تنسيق التاريخ وعرضه في الخانة
+        dateController.text = "${pickedDate.day}/${pickedDate.month}/${pickedDate.year}";
       });
     }
   }
@@ -38,22 +43,76 @@ class _PublierEvenementScreenState extends State<PublierEvenementScreen> {
     if (pickedTime != null) {
       setState(() {
         selectedTime = pickedTime;
-        timeController.text = pickedTime.format(context); // ✅ عرض التوقيت في الخانة
+        timeController.text = pickedTime.format(context);
       });
     }
   }
 
-  void _publishEvent() {
+  Future<void> _publishEvent() async {
+    // Vérifier si tous les champs sont remplis
     if (selectedType == null || selectedDate == null || selectedTime == null || descriptionController.text.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text("Veuillez remplir tous les champs."), backgroundColor: Colors.red),
       );
-    } else {
+      return;
+    }
+
+    // Activer l'indicateur de chargement
+    setState(() {
+      isLoading = true;
+    });
+
+    try {
+      // Créer un objet DateTime combinant la date et l'heure sélectionnées
+      final DateTime eventDateTime = DateTime(
+        selectedDate!.year,
+        selectedDate!.month,
+        selectedDate!.day,
+        selectedTime!.hour,
+        selectedTime!.minute,
+      );
+
+      // Créer l'objet à enregistrer dans Firestore
+      final Map<String, dynamic> eventData = {
+        'type': selectedType,
+        'date': Timestamp.fromDate(eventDateTime),
+        'description': descriptionController.text,
+        'dateCreation': Timestamp.now(),
+      };
+
+      // Enregistrer les données dans Firestore
+      await evenementsCollection.add(eventData);
+
+      // Afficher un message de succès
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text("Événement publié avec succès !"), backgroundColor: Colors.green),
       );
-      // 🚀 هنا يمكنك إرسال البيانات إلى قاعدة بيانات أو API
+
+      // Réinitialiser le formulaire
+      _resetForm();
+    } catch (e) {
+      // Gérer les erreurs
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("Erreur lors de la publication: ${e.toString()}"), backgroundColor: Colors.red),
+      );
+    } finally {
+      // Désactiver l'indicateur de chargement
+      setState(() {
+        isLoading = false;
+      });
     }
+  }
+
+  // Méthode pour réinitialiser le formulaire
+  void _resetForm() {
+    setState(() {
+      selectedType = null;
+      selectedDate = null;
+      selectedTime = null;
+      descriptionController.clear();
+      dateController.clear();
+      timeController.clear();
+    });
   }
 
   @override
@@ -61,12 +120,13 @@ class _PublierEvenementScreenState extends State<PublierEvenementScreen> {
     return Scaffold(
       appBar: AppBar(
         backgroundColor: Color.fromARGB(232, 2, 196, 34),
-        title: Text("Publier un événement")),
+        title: Text("Publier un événement"),
+      ),
       body: Padding(
         padding: EdgeInsets.all(16.0),
         child: ListView(
           children: [
-            // ✅ اختيار نوع الحدث
+            // Type d'événement
             DropdownButtonFormField<String>(
               decoration: InputDecoration(labelText: "Type d'événement", border: OutlineInputBorder()),
               value: selectedType,
@@ -81,9 +141,9 @@ class _PublierEvenementScreenState extends State<PublierEvenementScreen> {
             ),
             SizedBox(height: 10),
 
-            // ✅ اختيار تاريخ الحدث
+            // Date de l'événement
             TextField(
-              controller: dateController, // ✅ التحكم في النص
+              controller: dateController,
               readOnly: true,
               decoration: InputDecoration(
                 labelText: "📅 Sélectionner une date",
@@ -94,9 +154,9 @@ class _PublierEvenementScreenState extends State<PublierEvenementScreen> {
             ),
             SizedBox(height: 10),
 
-            // ✅ اختيار توقيت الحدث
+            // Heure de l'événement
             TextField(
-              controller: timeController, // ✅ التحكم في النص
+              controller: timeController,
               readOnly: true,
               decoration: InputDecoration(
                 labelText: "🕒 Sélectionner une heure",
@@ -107,7 +167,7 @@ class _PublierEvenementScreenState extends State<PublierEvenementScreen> {
             ),
             SizedBox(height: 10),
 
-            // ✅ وصف الحدث
+            // Description de l'événement
             TextField(
               controller: descriptionController,
               maxLines: 4,
@@ -118,10 +178,12 @@ class _PublierEvenementScreenState extends State<PublierEvenementScreen> {
             ),
             SizedBox(height: 20),
 
-            // ✅ زر النشر
+            // Bouton de publication
             ElevatedButton(
-              onPressed: _publishEvent,
-              child: Text("Publier",style:TextStyle(color: Colors.deepOrangeAccent),),
+              onPressed: isLoading ? null : _publishEvent,
+              child: isLoading 
+                ? CircularProgressIndicator() 
+                : Text("Publier", style: TextStyle(color: Colors.deepOrangeAccent)),
               style: ElevatedButton.styleFrom(padding: EdgeInsets.symmetric(vertical: 15)),
             ),
           ],
