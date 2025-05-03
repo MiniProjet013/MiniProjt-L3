@@ -1,13 +1,11 @@
-import 'package:flutter/material.dart';
-import '../widgets/custom_text_field.dart';
-import '../widgets/custom_button.dart';
+/*import 'package:flutter/material.dart';
+//import '../widgets/custom_button.dart';
 import '../services/auth_service.dart';
-import 'profs/home_screen.dart'; // ✅ واجهة الأستاذ
-import 'admin/admin_home_screen.dart'; // ✅ واجهة الإدارة
+import 'profs/home_screen.dart';
+import 'admin/admin_home_screen.dart';
 
 class LoginScreen extends StatefulWidget {
-  final String role; // ✅ تحديد الدور القادم من شاشة اختيار الدور
-
+  final String role;
   LoginScreen({required this.role});
 
   @override
@@ -20,7 +18,6 @@ class _LoginScreenState extends State<LoginScreen> {
   final TextEditingController passwordController = TextEditingController();
   bool isLoading = false;
 
-  /// ✅ التحقق من بيانات تسجيل الدخول
   void _login() async {
     setState(() => isLoading = true);
 
@@ -43,12 +40,11 @@ class _LoginScreenState extends State<LoginScreen> {
       if (roleFromFirebase == widget.role) {
         print("✅ تم التحقق من الدور، توجيه المستخدم...");
 
-        // ✅ تحديد الصفحة بناءً على الدور
         Widget nextScreen;
         if (widget.role == "admin") {
-          nextScreen = AdminHomeScreen(); // ✅ توجيه للإدارة
+          nextScreen = AdminHomeScreen();
         } else if (widget.role == "prof") {
-          nextScreen = HomeScreen(); // ✅ توجيه للأستاذ
+          nextScreen = HomeScreen();
         } else {
           _showError("⚠️ دور غير مدعوم!");
           return;
@@ -63,7 +59,6 @@ class _LoginScreenState extends State<LoginScreen> {
     }
   }
 
-  /// ✅ عرض رسالة خطأ
   void _showError(String message) {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(content: Text(message), backgroundColor: Colors.red),
@@ -73,63 +68,180 @@ class _LoginScreenState extends State<LoginScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: Color(0xFF2E335A), // خلفية داكنة
       body: SingleChildScrollView(
-        child: Column(
-          children: [
-            // ✅ الجزء العلوي (تصميم ثابت)
-            Stack(
-              alignment: Alignment.center,
+        child: SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.all(20.0),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                Container(
-                  height: 180,
-                  decoration: BoxDecoration(
-                    color: Color.fromARGB(232, 2, 196, 34), // ✅ اللون الأخضر
-                    borderRadius: BorderRadius.only(
-                      bottomLeft: Radius.circular(100),
-                      bottomRight: Radius.circular(100),
+                SizedBox(height: 40),
+                // عنوان الصفحة
+                Center(
+                  child: Text(
+                    "Login",
+                    style: TextStyle(
+                      fontSize: 28,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white,
                     ),
                   ),
                 ),
-                CircleAvatar(
-                  radius: 50,
-                  backgroundColor: Colors.white,
-                  child: Icon(Icons.person, size: 50, color: Color.fromARGB(232, 2, 196, 34)),
+                SizedBox(height: 20),
+                // أيقونة الدور
+                Center(
+                  child: CircleAvatar(
+                    radius: 50,
+                    backgroundColor: _getRoleColor(),
+                    child: Icon(
+                      _getRoleIcon(),
+                      size: 50,
+                      color: Colors.white,
+                    ),
+                  ),
+                ),
+                SizedBox(height: 40),
+                // حقل البريد
+                _buildLoginField(
+                  controller: emailController,
+                  hint: "Email",
+                  icon: Icons.email_outlined,
+                ),
+                SizedBox(height: 15),
+                // حقل كلمة المرور
+                _buildLoginField(
+                  controller: passwordController,
+                  hint: "Password",
+                  icon: Icons.lock_outline,
+                  isPassword: true,
+                ),
+                SizedBox(height: 15),
+                // زر نسيت كلمة المرور
+                Align(
+                  alignment: Alignment.centerRight,
+                  child: TextButton(
+                    onPressed: () {},
+                    child: Text(
+                      "Forgot Password?",
+                      style: TextStyle(
+                        color: Color.fromARGB(232, 2, 196, 34), // اللون الأخضر
+                      ),
+                    ),
+                  ),
+                ),
+                SizedBox(height: 30),
+                // زر تسجيل الدخول
+                isLoading
+                    ? Center(child: CircularProgressIndicator(color: Colors.white))
+                    : Container(
+                        height: 55,
+                        decoration: BoxDecoration(
+                          color: Color.fromARGB(213, 230, 122, 0), // البرتقالي
+                          borderRadius: BorderRadius.circular(30),
+                        ),
+                        child: TextButton(
+                          onPressed: _login,
+                          child: Text(
+                            "LOGIN",
+                            style: TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.white,
+                            ),
+                          ),
+                        ),
+                      ),
+                SizedBox(height: 30),
+                // رابط إنشاء حساب
+                Center(
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Text(
+                        "Don't have an account? ",
+                        style: TextStyle(color: Colors.white70),
+                      ),
+                      Text(
+                        "Sign up",
+                        style: TextStyle(
+                          color: Color.fromARGB(232, 2, 196, 34), // اللون الأخضر
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               ],
             ),
-            SizedBox(height: 40),
+          ),
+        ),
+      ),
+    );
+  }
 
-            // ✅ إدخال البريد وكلمة المرور مع الحفاظ على التصميم الأصلي
-            CustomTextField(
-              label: "Email",
-              icon: Icons.person,
-              controller: emailController,
-            ),
-            SizedBox(height: 15),
-            CustomTextField(
-              label: "Mot de passe",
-              icon: Icons.lock,
-              isPassword: true,
-              controller: passwordController,
-            ),
-            SizedBox(height: 25),
+  // لون الدور المحدد
+  Color _getRoleColor() {
+    switch (widget.role) {
+      case "admin":
+        return Color.fromARGB(213, 230, 122, 0); // البرتقالي
+      case "prof":
+        return Color.fromARGB(255, 33, 150, 243); // الأزرق
+      case "parent":
+        return Color.fromARGB(255, 255, 193, 7); // الأصفر
+      default:
+        return Color.fromARGB(232, 2, 196, 34); // الأخضر
+    }
+  }
 
-            isLoading
-                ? CircularProgressIndicator()
-                : CustomButton(
-                    text: "SE CONNECTER",
-                    onPressed: _login,
-                  ),
+  // أيقونة الدور المحدد
+  IconData _getRoleIcon() {
+    switch (widget.role) {
+      case "admin":
+        return Icons.admin_panel_settings;
+      case "prof":
+        return Icons.school;
+      case "parent":
+        return Icons.family_restroom;
+      default:
+        return Icons.person;
+    }
+  }
 
-            SizedBox(height: 10),
-
-            TextButton(
-              onPressed: () {},
-              child: Text("Mot de passe oublié?", style: TextStyle(color: Colors.grey)),
+  // حقل إدخال مخصص
+  Widget _buildLoginField({
+    required TextEditingController controller,
+    required String hint,
+    required IconData icon,
+    bool isPassword = false,
+  }) {
+    return Container(
+      height: 55,
+      decoration: BoxDecoration(
+        color: Colors.white.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(30),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 20),
+        child: Row(
+          children: [
+            Icon(icon, color: Colors.white70, size: 22),
+            SizedBox(width: 15),
+            Expanded(
+              child: TextField(
+                controller: controller,
+                obscureText: isPassword,
+                style: TextStyle(color: Colors.white),
+                decoration: InputDecoration(
+                  hintText: hint,
+                  hintStyle: TextStyle(color: Colors.white54),
+                  border: InputBorder.none,
+                ),
+              ),
             ),
           ],
         ),
       ),
     );
   }
-}
+}*/

@@ -1,6 +1,8 @@
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
-import 'screens/PARENTS/RoleSelectionScreen.dart'; // ✅ إضافة استيراد واجهة اختيار الدور
+import 'screens/RoleSelectionScreen.dart'; 
+import 'screens/splash_screen.dart';
+// ✅ إضافة استيراد واجهة اختيار الدور
 //import 'screens/login_screen.dart';
 import 'package:flutter/foundation.dart';
 
@@ -23,7 +25,7 @@ class MyApp extends StatelessWidget {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
       title: 'Gestion Scolaire',
-      home: RoleSelectionScreen(), // ✅ عرض واجهة اختيار الدور أولاً
+      home:  SplashScreen(), // ✅ عرض واجهة اختيار الدور أولاً
     );
   }
 }

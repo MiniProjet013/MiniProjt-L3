@@ -35,7 +35,7 @@ class GestionAbsencesScreen extends StatelessWidget {
               },
               child: CategoryCard(
                 title: options[index]['title'],
-                icon: options[index]['icon'],
+                icon: options[index]['icon'], color: null,
               ),
             );
           },
