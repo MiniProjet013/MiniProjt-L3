@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../utils/constants.dart';
-import 'modifier_prof_screen.dart'; // استيراد واجهة تعديل بيانات الأستاذ
+import 'modifier_prof_screen.dart';
 
 class ModifierProfsScreen extends StatefulWidget {
   @override
@@ -10,11 +10,19 @@ class ModifierProfsScreen extends StatefulWidget {
 
 class _ModifierProfsScreenState extends State<ModifierProfsScreen> {
   final FirebaseFirestore _db = FirebaseFirestore.instance;
-  bool isLoading = false;
+  bool isLoading = true;
   List<Map<String, dynamic>> profs = [];
   List<Map<String, dynamic>> filteredProfs = [];
-  TextEditingController searchController = TextEditingController();
+  String? searchQuery;
+  String? filterMatiere;
+  String? filterClasse;
   String? selectedYear;
+  
+  // Colors to match the ModifierEleveScreen
+  final Color orangeColor = Color.fromARGB(255, 218, 64, 3);
+  final Color greenColor = Color.fromARGB(255, 1, 110, 5);
+  final Color lightColor = Color.fromARGB(255, 255, 255, 255);
+  final Color darkColor = Color(0xFF333333);
 
   final List<String> schoolYears = [
     "Tous",
@@ -30,13 +38,6 @@ class _ModifierProfsScreenState extends State<ModifierProfsScreen> {
     super.initState();
     selectedYear = "Tous";
     _loadProfessors();
-    searchController.addListener(_filterProfs);
-  }
-
-  @override
-  void dispose() {
-    searchController.dispose();
-    super.dispose();
   }
 
   Future<void> _loadProfessors() async {
@@ -74,7 +75,7 @@ class _ModifierProfsScreenState extends State<ModifierProfsScreen> {
     } catch (e) {
       print("❌ خطأ أثناء تحميل بيانات الأساتذة: $e");
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: Text("❌ فشل تحميل بيانات الأساتذة"),
+        content: Text("❌ Échec du chargement des données des professeurs"),
         backgroundColor: Colors.red,
       ));
     } finally {
@@ -83,15 +84,37 @@ class _ModifierProfsScreenState extends State<ModifierProfsScreen> {
   }
 
   void _filterProfs() {
-    String query = searchController.text.toLowerCase();
-
     setState(() {
       filteredProfs = profs.where((prof) {
-        return prof["nom"].toLowerCase().contains(query) ||
-            prof["prenom"].toLowerCase().contains(query) ||
-            prof["idProf"].toLowerCase().contains(query) ||
-            prof["matiere"].toLowerCase().contains(query) ||
-            prof["email"].toLowerCase().contains(query);
+        // Filter by search query
+        if (searchQuery != null && searchQuery!.isNotEmpty) {
+          String fullName = '${prof["nom"]} ${prof["prenom"]}'.toLowerCase();
+          String query = searchQuery!.toLowerCase();
+          String id = prof["idProf"].toString().toLowerCase();
+          String matiere = prof["matiere"].toString().toLowerCase();
+          
+          if (!fullName.contains(query) && 
+              !id.contains(query) && 
+              !matiere.contains(query)) {
+            return false;
+          }
+        }
+        
+        // Filter by matiere
+        if (filterMatiere != null && filterMatiere!.isNotEmpty) {
+          if (!prof["matiere"].toString().toLowerCase().contains(filterMatiere!.toLowerCase())) {
+            return false;
+          }
+        }
+        
+        // Filter by classe
+        if (filterClasse != null && filterClasse!.isNotEmpty) {
+          if (prof["numeroClasse"].toString() != filterClasse) {
+            return false;
+          }
+        }
+        
+        return true;
       }).toList();
     });
   }
@@ -99,42 +122,176 @@ class _ModifierProfsScreenState extends State<ModifierProfsScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        backgroundColor: primaryColor,
-        title: Text("Modifier Professeurs"),
-      ),
-      body: Column(
-        children: [
-          Padding(
-            padding: const EdgeInsets.all(16.0),
-            child: Column(
-              children: [
-                TextField(
-                  controller: searchController,
-                  decoration: InputDecoration(
-                    labelText: "Rechercher",
-                    hintText: "Nom, prénom, matière...",
-                    prefixIcon: Icon(Icons.search),
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(10),
+      backgroundColor: lightColor,
+      body: CustomScrollView(
+        slivers: [
+          // Gradient AppBar like ModifierEleveScreen
+          SliverAppBar(
+            expandedHeight: 150.0,
+            floating: false,
+            pinned: true,
+            flexibleSpace: FlexibleSpaceBar(
+              background: Container(
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: [orangeColor.withOpacity(0.8), greenColor.withOpacity(0.8)],
+                  ),
+                ),
+                child: SafeArea(
+                  child: Padding(
+                    padding: const EdgeInsets.all(20.0),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisAlignment: MainAxisAlignment.end,
+                      children: [
+                        Text(
+                          'Modifier les professeurs',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 28,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        SizedBox(height: 8),
+                        Text(
+                          'Gérer la liste des professeurs',
+                          style: TextStyle(
+                            color: Colors.white.withOpacity(0.9),
+                            fontSize: 16,
+                          ),
+                        ),
+                      ],
                     ),
                   ),
                 ),
-                SizedBox(height: 10),
-                Row(
-                  children: [
-                    Text("Année scolaire: ", 
-                      style: TextStyle(fontWeight: FontWeight.bold)),
-                    SizedBox(width: 10),
-                    Expanded(
-                      child: DropdownButtonFormField<String>(
-                        value: selectedYear,
-                        decoration: InputDecoration(
-                          contentPadding: EdgeInsets.symmetric(horizontal: 10),
-                          border: OutlineInputBorder(
+              ),
+            ),
+            actions: [
+              IconButton(
+                icon: Icon(Icons.refresh, color: Colors.white),
+                onPressed: _loadProfessors,
+              ),
+            ],
+          ),
+          
+          // Search and Filter Section
+          SliverToBoxAdapter(
+            child: Container(
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(15),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.grey.withOpacity(0.1),
+                    spreadRadius: 1,
+                    blurRadius: 6,
+                    offset: Offset(0, 3),
+                  ),
+                ],
+              ),
+              margin: EdgeInsets.all(16),
+              padding: EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    "Recherche et filtres",
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                      color: darkColor,
+                    ),
+                  ),
+                  SizedBox(height: 16),
+                  // Search Bar
+                  Container(
+                    decoration: BoxDecoration(
+                      color: Colors.grey.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: TextField(
+                      decoration: InputDecoration(
+                        hintText: "Rechercher par nom ou ID",
+                        prefixIcon: Icon(Icons.search, color: greenColor),
+                        border: InputBorder.none,
+                        contentPadding: EdgeInsets.symmetric(vertical: 15),
+                      ),
+                      onChanged: (value) {
+                        setState(() {
+                          searchQuery = value;
+                        });
+                        _filterProfs();
+                      },
+                    ),
+                  ),
+                  SizedBox(height: 16),
+                  // Filters
+                  Row(
+                    children: [
+                      // Matière filter
+                      Expanded(
+                        child: Container(
+                          decoration: BoxDecoration(
+                            color: Colors.grey.withOpacity(0.1),
                             borderRadius: BorderRadius.circular(10),
                           ),
+                          padding: EdgeInsets.symmetric(horizontal: 10),
+                          child: TextField(
+                            decoration: InputDecoration(
+                              hintText: "Matière",
+                              border: InputBorder.none,
+                              contentPadding: EdgeInsets.symmetric(vertical: 15),
+                            ),
+                            onChanged: (value) {
+                              setState(() {
+                                filterMatiere = value.isEmpty ? null : value;
+                              });
+                              _filterProfs();
+                            },
+                          ),
                         ),
+                      ),
+                      SizedBox(width: 10),
+                      // Classe filter
+                      Expanded(
+                        child: Container(
+                          decoration: BoxDecoration(
+                            color: Colors.grey.withOpacity(0.1),
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          padding: EdgeInsets.symmetric(horizontal: 10),
+                          child: TextField(
+                            decoration: InputDecoration(
+                              hintText: "Classe",
+                              border: InputBorder.none,
+                              contentPadding: EdgeInsets.symmetric(vertical: 15),
+                            ),
+                            onChanged: (value) {
+                              setState(() {
+                                filterClasse = value.isEmpty ? null : value;
+                              });
+                              _filterProfs();
+                            },
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  SizedBox(height: 16),
+                  // Année scolaire filter
+                  Container(
+                    decoration: BoxDecoration(
+                      color: Colors.grey.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    padding: EdgeInsets.symmetric(horizontal: 10),
+                    child: DropdownButtonHideUnderline(
+                      child: DropdownButton<String>(
+                        isExpanded: true,
+                        value: selectedYear,
+                        hint: Text("Année scolaire"),
                         items: schoolYears.map((year) {
                           return DropdownMenuItem(
                             value: year,
@@ -149,72 +306,280 @@ class _ModifierProfsScreenState extends State<ModifierProfsScreen> {
                         },
                       ),
                     ),
-                  ],
-                ),
-              ],
+                  ),
+                ],
+              ),
             ),
           ),
-          Expanded(
-            child: isLoading
-                ? Center(child: CircularProgressIndicator())
-                : filteredProfs.isEmpty
-                    ? Center(
-                        child: Text(
-                          "Aucun professeur trouvé",
-                          style: TextStyle(fontSize: 18),
-                        ),
-                      )
-                    : ListView.builder(
-                        itemCount: filteredProfs.length,
-                        itemBuilder: (context, index) {
-                          final prof = filteredProfs[index];
-                          return Card(
-                            margin: EdgeInsets.symmetric(
-                                horizontal: 16, vertical: 4),
-                            elevation: 2,
-                            child: ListTile(
-                              leading: CircleAvatar(
-                                backgroundColor: Colors.deepOrangeAccent,
-                                child: Icon(Icons.person, color: Colors.white),
+          
+          // Professors List
+          SliverPadding(
+            padding: EdgeInsets.symmetric(horizontal: 16),
+            sliver: isLoading
+              ? SliverFillRemaining(
+                  child: Center(
+                    child: CircularProgressIndicator(
+                      valueColor: AlwaysStoppedAnimation<Color>(orangeColor),
+                    ),
+                  ),
+                )
+              : filteredProfs.isEmpty
+                ? SliverFillRemaining(
+                    child: Center(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(
+                            Icons.person_off,
+                            size: 60,
+                            color: Colors.grey,
+                          ),
+                          SizedBox(height: 16),
+                          Text(
+                            "Aucun professeur trouvé",
+                            style: TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
+                              color: darkColor,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  )
+                : SliverList(
+                    delegate: SliverChildBuilderDelegate(
+                      (context, index) {
+                        final prof = filteredProfs[index];
+                        return Container(
+                          margin: EdgeInsets.only(bottom: 12),
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(15),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.grey.withOpacity(0.1),
+                                spreadRadius: 1,
+                                blurRadius: 6,
+                                offset: Offset(0, 3),
                               ),
-                              title: Text(
-                                "${prof["nom"]} ${prof["prenom"]}",
-                                style: TextStyle(fontWeight: FontWeight.bold),
+                            ],
+                          ),
+                          child: ListTile(
+                            contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                            leading: Container(
+                              width: 50,
+                              height: 50,
+                              decoration: BoxDecoration(
+                                gradient: LinearGradient(
+                                  begin: Alignment.topLeft,
+                                  end: Alignment.bottomRight,
+                                  colors: [
+                                    index % 2 == 0 
+                                        ? orangeColor.withOpacity(0.2) 
+                                        : greenColor.withOpacity(0.2),
+                                    index % 2 == 0 
+                                        ? orangeColor.withOpacity(0.4) 
+                                        : greenColor.withOpacity(0.4),
+                                  ],
+                                ),
+                                borderRadius: BorderRadius.circular(12),
                               ),
-                              subtitle: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text("Matière: ${prof["matiere"]}"),
-                                  Text("Classe: ${prof["numeroClasse"]} - ${prof["anneeScolaire"]}"),
-                                  Text("ID: ${prof["idProf"]}", style: TextStyle(fontSize: 12, color: Colors.grey)),
-                                ],
-                              ),
-                              isThreeLine: true,
-                              trailing: IconButton(
-                                icon: Icon(Icons.edit, color: Colors.blue),
-                                onPressed: () async {
-                                  final result = await Navigator.push(
-                                    context,
-                                    MaterialPageRoute(
-                                      builder: (context) => ModifierProfScreen(
-                                        idProf: prof["idProf"],
-                                      ),
-                                    ),
-                                  );
-                                  
-                                  // إذا تم تحديث البيانات، نقوم بإعادة تحميل القائمة
-                                  if (result == true) {
-                                    _loadProfessors();
-                                  }
-                                },
+                              child: Icon(
+                                Icons.school,
+                                size: 30,
+                                color: index % 2 == 0 ? orangeColor : greenColor,
                               ),
                             ),
-                          );
-                        },
-                      ),
+                            title: Text(
+                              "${prof['nom']} ${prof['prenom']}",
+                              style: TextStyle(
+                                fontWeight: FontWeight.bold,
+                                fontSize: 16,
+                                color: darkColor,
+                              ),
+                            ),
+                            subtitle: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  "ID: ${prof['idProf']} | Matière: ${prof['matiere']}",
+                                  style: TextStyle(
+                                    color: Colors.grey[600],
+                                  ),
+                                ),
+                                Text(
+                                  "Classe: ${prof['numeroClasse']} | ${prof['anneeScolaire']}",
+                                  style: TextStyle(
+                                    color: Colors.grey[600],
+                                  ),
+                                ),
+                              ],
+                            ),
+                            trailing: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Container(
+                                  decoration: BoxDecoration(
+                                    color: Colors.blue.withOpacity(0.1),
+                                    borderRadius: BorderRadius.circular(8),
+                                  ),
+                                  child: IconButton(
+                                    icon: Icon(Icons.edit, color: Colors.blue),
+                                    onPressed: () async {
+                                      final result = await Navigator.push(
+                                        context,
+                                        MaterialPageRoute(
+                                          builder: (context) => ModifierProfScreen(
+                                            idProf: prof["idProf"],
+                                          ),
+                                        ),
+                                      );
+                                      
+                                      if (result == true) {
+                                        _loadProfessors();
+                                      }
+                                    },
+                                  ),
+                                ),
+                                SizedBox(width: 8),
+                                Container(
+                                  decoration: BoxDecoration(
+                                    color: Colors.red.withOpacity(0.1),
+                                    borderRadius: BorderRadius.circular(8),
+                                  ),
+                                  child: IconButton(
+                                    icon: Icon(Icons.delete, color: Colors.red),
+                                    onPressed: () {
+                                      _showDeleteConfirmation(prof);
+                                    },
+                                  ),
+                                ),
+                              ],
+                            ),
+                            isThreeLine: true,
+                          ),
+                        );
+                      },
+                      childCount: filteredProfs.length,
+                    ),
+                  ),
+          ),
+          
+          // Bottom padding
+          SliverPadding(padding: EdgeInsets.only(bottom: 20)),
+        ],
+      ),
+      // Floating Action Button
+      floatingActionButton: FloatingActionButton(
+        backgroundColor: greenColor,
+        child: Icon(Icons.add),
+        onPressed: () {
+          // Navigate to add new professor screen
+          print("Add new professor");
+        },
+      ),
+    );
+  }
+  
+  void _showDeleteConfirmation(Map<String, dynamic> prof) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(15),
+        ),
+        title: Text(
+          "Confirmation",
+          style: TextStyle(
+            color: darkColor,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              padding: EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: Colors.red.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Icon(
+                Icons.warning_amber_rounded,
+                color: Colors.red,
+                size: 50,
+              ),
+            ),
+            SizedBox(height: 16),
+            Text(
+              "Voulez-vous vraiment supprimer le professeur ${prof['nom']} ${prof['prenom']}?",
+              style: TextStyle(fontSize: 16),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            child: Text(
+              "Annuler",
+              style: TextStyle(color: Colors.grey[600]),
+            ),
+            onPressed: () => Navigator.pop(context),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.red,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(8),
+              ),
+            ),
+            child: Text(
+              "Supprimer",
+              style: TextStyle(color: Colors.white),
+            ),
+            onPressed: () async {
+              Navigator.pop(context);
+              await _deleteProf(prof);
+            },
           ),
         ],
       ),
     );
+  }
+  
+  Future<void> _deleteProf(Map<String, dynamic> prof) async {
+    try {
+      // Delete professor document
+      await _db.collection('profs').doc(prof['idProf']).delete();
+      
+      // You might need to delete references in other collections
+      WriteBatch batch = _db.batch();
+      
+      // For example, delete from classes
+      QuerySnapshot classesSnapshot = await _db
+          .collection('classes')
+          .where("profId", isEqualTo: prof['idProf'])
+          .get();
+          
+      for (var doc in classesSnapshot.docs) {
+        batch.update(doc.reference, {"profId": null});
+      }
+      
+      await batch.commit();
+      
+      // Refresh the list
+      _loadProfessors();
+      
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text("✅ Professeur supprimé avec succès!"),
+        backgroundColor: greenColor,
+      ));
+    } catch (e) {
+      print("❌ Error deleting professor: $e");
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text("❌ Erreur lors de la suppression du professeur!"),
+        backgroundColor: Colors.red,
+      ));
+    }
   }
 }

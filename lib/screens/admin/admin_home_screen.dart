@@ -47,7 +47,7 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
   }
 
   final List<Map<String, dynamic>> categories = [
-    {"title": "Gestion des absences", "icon": Icons.event_busy, "route": GestionAbsencesScreen()},
+    {"title": "Discipline scolaire", "icon": Icons.event_busy, "route":DisciplineScolaireScreen()},
     {"title": "Gestion emploi", "icon": Icons.calendar_month, "route": GestionEmploiScreen()},
     {"title": "Ajouter", "icon": Icons.person_add, "route": AjouterUtilisateurScreen()},
     {"title": "Modifier données", "icon": Icons.edit, "route": ModifierScreen()},

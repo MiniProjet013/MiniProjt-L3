@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:fl_chart/fl_chart.dart';
-import '../../utils/constants.dart';
 
 class StatistiquesEtablissementScreen extends StatefulWidget {
   @override
@@ -12,28 +11,44 @@ class _StatistiquesEtablissementScreenState extends State<StatistiquesEtablissem
   final FirebaseFirestore _db = FirebaseFirestore.instance;
   bool isLoading = true;
   
+  // Couleurs principales
+  final orangeColor = Color.fromARGB(255, 218, 64, 3);
+  final greenColor = Color.fromARGB(255, 1, 110, 5);
+  final lightColor = Colors.white;
+  final darkColor = Color(0xFF333333);
+  
   // Données statistiques
   Map<String, int> stats = {
     'totalProfs': 0,
     'totalEleves': 0,
     'totalEvenements': 0,
     'totalClasses': 0,
-    'modificationsRecentes': 0,
-    'ajoutsRecents': 0,
   };
   
   // Données pour les graphiques
   List<Map<String, dynamic>> eventsByType = [];
-  List<Map<String, dynamic>> studentsPerClass = [];
-  List<Map<String, dynamic>> activityByMonth = [];
+  
+  // Listes pour les dialogues
+  List<Map<String, dynamic>> profsList = [];
+  List<Map<String, dynamic>> elevesList = [];
+  List<Map<String, dynamic>> evenementsList = [];
+  List<Map<String, dynamic>> classesList = [];
   
   late TabController _tabController;
+  
+  // Variables pour la gestion des classes et élèves
+  String? selectedClass;
+  List<Map<String, dynamic>> classStudentsList = [];
+  bool isLoadingClassStudents = false;
+  bool isLoadingClasses = true;
+  String? selectedClassNumber;
   
   @override
   void initState() {
     super.initState();
     _tabController = TabController(length: 3, vsync: this);
     _loadAllStatistics();
+    _loadClassesForTab();
   }
   
   @override
@@ -46,212 +61,229 @@ class _StatistiquesEtablissementScreenState extends State<StatistiquesEtablissem
     setState(() => isLoading = true);
     
     try {
-      // Chargement des compteurs de base
-      await _loadBasicCounts();
-      
-      // Chargement des données pour les graphiques
       await Future.wait([
+        _loadBasicCounts(),
         _loadEventsByType(),
-        _loadStudentsPerClass(),
-        _loadActivityByMonth(),
+        _loadListsForDialogs(),
       ]);
-      
     } catch (e) {
-      print("❌ Erreur lors du chargement des statistiques: $e");
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: Text("❌ Échec du chargement des statistiques"),
-        backgroundColor: Colors.red,
-      ));
+      print("Erreur: $e");
     } finally {
       setState(() => isLoading = false);
     }
   }
   
   Future<void> _loadBasicCounts() async {
-    // Nombre total de professeurs
-    final profsSnapshot = await _db.collection('profs').count().get();
-    
-    // Nombre total d'élèves
-    final elevesSnapshot = await _db.collection('eleves').count().get();
-    
-    // Nombre total d'événements
-    final evenementsSnapshot = await _db.collection('evenements').count().get();
-    
-    // Nombre total de classes
-    final classesSnapshot = await _db.collection('classes').count().get();
-    
-    // Nombre de modifications récentes (30 derniers jours)
-    final thirtyDaysAgo = DateTime.now().subtract(Duration(days: 30));
-    final modificationsSnapshot = await _db.collection('evenements')
-        .where('dateModification', isGreaterThan: Timestamp.fromDate(thirtyDaysAgo))
-        .count().get();
-    
-    // Nombre d'ajouts récents (30 derniers jours)
-    final ajoutsSnapshot = await _db.collection('evenements')
-        .where('dateCreation', isGreaterThan: Timestamp.fromDate(thirtyDaysAgo))
-        .count().get();
+    final counts = await Future.wait([
+      _db.collection('profs').count().get(),
+      _db.collection('eleves').count().get(),
+      _db.collection('evenements').count().get(),
+      _db.collection('classes').count().get(),
+    ]);
     
     setState(() {
-      stats['totalProfs'] = profsSnapshot.count ?? 0;
-      stats['totalEleves'] = elevesSnapshot.count ?? 0;
-      stats['totalEvenements'] = evenementsSnapshot.count ?? 0;
-      stats['totalClasses'] = classesSnapshot.count ?? 0;
-      stats['modificationsRecentes'] = modificationsSnapshot.count ?? 0;
-      stats['ajoutsRecents'] = ajoutsSnapshot.count ?? 0;
+      stats['totalProfs'] = counts[0].count ?? 0;
+      stats['totalEleves'] = counts[1].count ?? 0;
+      stats['totalEvenements'] = counts[2].count ?? 0;
+      stats['totalClasses'] = counts[3].count ?? 0;
     });
   }
   
   Future<void> _loadEventsByType() async {
     final snapshot = await _db.collection('evenements').get();
-    
-    Map<String, int> typeCount = {
-      'Réunion': 0,
-      'Examen': 0,
-      'Activité': 0,
-      'Autre': 0,
-    };
+    Map<String, int> typeCount = {};
     
     for (var doc in snapshot.docs) {
-      final data = doc.data();
-      final type = data['type'] as String? ?? 'Autre';
+      final type = doc.data()['type'] as String? ?? 'Autre';
       typeCount[type] = (typeCount[type] ?? 0) + 1;
     }
     
-    List<Map<String, dynamic>> result = [];
-    typeCount.forEach((key, value) {
-      result.add({
-        'type': key,
-        'count': value,
-      });
-    });
-    
     setState(() {
-      eventsByType = result;
+      eventsByType = typeCount.entries
+          .map((e) => {'type': e.key, 'count': e.value})
+          .toList();
     });
   }
   
-  Future<void> _loadStudentsPerClass() async {
-    // Charger les classes depuis Firestore
-    final classesSnapshot = await _db.collection('classes').get();
+  Future<void> _loadListsForDialogs() async {
+    final [profs, eleves, evenements, classes] = await Future.wait([
+      _db.collection('profs').get(),
+      _db.collection('eleves').get(),
+      _db.collection('evenements').get(),
+      _db.collection('classes').get(),
+    ]);
     
-    List<Map<String, dynamic>> result = [];
-    
-    for (var classeDoc in classesSnapshot.docs) {
-      final classeData = classeDoc.data();
-      final className = '${classeData['niveauxEtude']?.first ?? 'N/A'} ${classeData['numeroClasses'] ?? ''}';
+    setState(() {
+      profsList = profs.docs.map((doc) {
+        final data = doc.data();
+        return {
+          'id': doc.id,
+          'nom': data['nom'] ?? '',
+          'prenom': data['prenom'] ?? '',
+        };
+      }).toList();
       
-      // Compter les élèves dans cette classe
-      final studentsCount = await _db.collection('eleves')
-          .where('idClasses', isEqualTo: classeDoc.id)
-          .count()
+      elevesList = eleves.docs.map((doc) {
+        final data = doc.data();
+        return {
+          'id': doc.id,
+          'nom': data['nom'] ?? '',
+          'prenom': data['prenom'] ?? '',
+          'idClasse': data['idClasse'] ?? '',
+          'numeroClasse': data['numeroClasse'] ?? '',
+        };
+      }).toList();
+      
+      evenementsList = evenements.docs.map((doc) {
+        final data = doc.data();
+        return {
+          'id': doc.id,
+          'type': data['type'] ?? 'Autre',
+          'description': data['description'] ?? '',
+        };
+      }).toList();
+      
+      classesList = classes.docs.map((doc) {
+        final data = doc.data();
+        return {
+          'id': doc.id,
+          'numeroClasse': data['numeroClasse'] ?? '',
+          'niveau': data['niveauxEtude']?.first ?? '',
+        };
+      }).toList();
+    });
+  }
+  
+  // Fonctions pour la gestion des classes dans l'onglet Classes
+  Future<void> _loadClassesForTab() async {
+    setState(() {
+      isLoadingClasses = true;
+      classesList.clear();
+    });
+
+    try {
+      QuerySnapshot classesSnapshot = await _db.collection('classes').get();
+      
+      List<Map<String, dynamic>> classes = classesSnapshot.docs.map((doc) {
+        Map<String, dynamic> data = doc.data() as Map<String, dynamic>;
+        return {
+          'id': doc.id,
+          'numeroClasse': data['numeroClasse'] ?? '',
+          'niveau': data['niveauxEtude']?.first ?? '',
+        };
+      }).toList();
+
+      // Trier les classes par numéro
+      classes.sort((a, b) => a['numeroClasse'].compareTo(b['numeroClasse']));
+
+      setState(() {
+        classesList = classes;
+        isLoadingClasses = false;
+      });
+    } catch (e) {
+      print("Erreur lors du chargement des classes: $e");
+      setState(() {
+        isLoadingClasses = false;
+      });
+    }
+  }
+
+  Future<void> _loadStudentsForClass(String classNumber) async {
+    setState(() {
+      isLoadingClassStudents = true;
+      classStudentsList.clear();
+    });
+
+    try {
+      QuerySnapshot studentsSnapshot = await _db
+          .collection('eleves')
+          .where('numeroClasse', isEqualTo: classNumber)
           .get();
-      
-      result.add({
-        'classe': className,
-        'count': studentsCount.count ?? 0,
+
+      List<Map<String, dynamic>> students = [];
+
+      for (var studentDoc in studentsSnapshot.docs) {
+        Map<String, dynamic> studentData = studentDoc.data() as Map<String, dynamic>;
+
+        students.add({
+          'id': studentDoc.id,
+          'nom': studentData['nom'] ?? '',
+          'prenom': studentData['prenom'] ?? '',
+          'nomComplet': "${studentData['prenom'] ?? ''} ${studentData['nom'] ?? ''}",
+          'numeroClasse': studentData['numeroClasse'] ?? '',
+        });
+      }
+
+      // Trier les élèves par nom
+      students.sort((a, b) => a['nomComplet'].compareTo(b['nomComplet']));
+
+      setState(() {
+        classStudentsList = students;
+        isLoadingClassStudents = false;
+      });
+    } catch (e) {
+      print("Erreur lors du chargement des élèves: $e");
+      setState(() {
+        isLoadingClassStudents = false;
       });
     }
-    
-    setState(() {
-      studentsPerClass = result;
-    });
-  }
-  
-  Future<void> _loadActivityByMonth() async {
-    final now = DateTime.now();
-    final sixMonthsAgo = DateTime(now.year, now.month - 6, 1);
-    
-    // Récupérer les événements des 6 derniers mois
-    final eventsSnapshot = await _db.collection('evenements')
-        .where('dateCreation', isGreaterThan: Timestamp.fromDate(sixMonthsAgo))
-        .get();
-    
-    Map<String, Map<String, int>> monthlyData = {};
-    
-    for (var doc in eventsSnapshot.docs) {
-      final data = doc.data();
-      final date = (data['dateCreation'] as Timestamp).toDate();
-      final monthKey = '${_getMonthAbbreviation(date.month)} ${date.year}';
-      
-      if (!monthlyData.containsKey(monthKey)) {
-        monthlyData[monthKey] = {'events': 0, 'modifications': 0};
-      }
-      
-      monthlyData[monthKey]!['events'] = monthlyData[monthKey]!['events']! + 1;
-      
-      // Vérifier si l'événement a été modifié
-      if (data['dateModification'] != null) {
-        monthlyData[monthKey]!['modifications'] = monthlyData[monthKey]!['modifications']! + 1;
-      }
-    }
-    
-    // Convertir en liste et trier par date
-    List<Map<String, dynamic>> result = [];
-    monthlyData.forEach((key, value) {
-      result.add({
-        'month': key,
-        'events': value['events'],
-        'modifications': value['modifications'],
-      });
-    });
-    
-    // Trier par date
-    result.sort((a, b) {
-      final aParts = a['month'].split(' ');
-      final bParts = b['month'].split(' ');
-      final aMonth = _getMonthNumber(aParts[0]);
-      final bMonth = _getMonthNumber(bParts[0]);
-      final aYear = int.parse(aParts[1]);
-      final bYear = int.parse(bParts[1]);
-      
-      if (aYear != bYear) return aYear.compareTo(bYear);
-      return aMonth.compareTo(bMonth);
-    });
-    
-    setState(() {
-      activityByMonth = result;
-    });
-  }
-  
-  String _getMonthAbbreviation(int month) {
-    const months = ['Jan', 'Fév', 'Mar', 'Avr', 'Mai', 'Juin', 'Juil', 'Août', 'Sep', 'Oct', 'Nov', 'Déc'];
-    return months[month - 1];
-  }
-  
-  int _getMonthNumber(String monthAbbr) {
-    const months = ['Jan', 'Fév', 'Mar', 'Avr', 'Mai', 'Juin', 'Juil', 'Août', 'Sep', 'Oct', 'Nov', 'Déc'];
-    return months.indexOf(monthAbbr) + 1;
   }
   
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        backgroundColor: primaryColor,
-        title: Text("Statistiques de l'établissement"),
-        bottom: TabBar(
-          controller: _tabController,
-          tabs: [
-            Tab(text: "Résumé", icon: Icon(Icons.dashboard)),
-            Tab(text: "Événements", icon: Icon(Icons.event)),
-            Tab(text: "Classes", icon: Icon(Icons.school)),
-          ],
-        ),
-      ),
-      body: isLoading
-        ? Center(child: CircularProgressIndicator())
-        : TabBarView(
-            controller: _tabController,
-            children: [
-              _buildSummaryTab(),
-              _buildEventsTab(),
-              _buildClassesTab(),
-            ],
+      body: CustomScrollView(
+        slivers: [
+          SliverAppBar(
+            expandedHeight: 120,
+            pinned: true,
+            flexibleSpace: FlexibleSpaceBar(
+              title: Text("Statistiques de l'établissement", style: TextStyle(color: Colors.white)),
+              background: Container(
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: [orangeColor, greenColor],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                  ),
+                ),
+              ),
+            ),
           ),
+          SliverPersistentHeader(
+            pinned: true,
+            delegate: _SliverAppBarDelegate(
+              TabBar(
+                controller: _tabController,
+                labelColor: darkColor,
+                unselectedLabelColor: Colors.grey,
+                indicatorColor: orangeColor,
+                tabs: [
+                  Tab(text: "Résumé", icon: Icon(Icons.dashboard)),
+                  Tab(text: "Événements", icon: Icon(Icons.event)),
+                  Tab(text: "Classes", icon: Icon(Icons.school)),
+                ],
+              ),
+            ),
+          ),
+          SliverFillRemaining(
+            child: isLoading
+              ? Center(child: CircularProgressIndicator(color: orangeColor))
+              : TabBarView(
+                  controller: _tabController,
+                  children: [
+                    _buildSummaryTab(),
+                    _buildEventsTab(),
+                    _buildClassesTab(),
+                  ],
+                ),
+          ),
+        ],
+      ),
       floatingActionButton: FloatingActionButton(
         onPressed: _loadAllStatistics,
+        backgroundColor: orangeColor,
         child: Icon(Icons.refresh),
-        tooltip: "Actualiser les statistiques",
       ),
     );
   }
@@ -260,71 +292,27 @@ class _StatistiquesEtablissementScreenState extends State<StatistiquesEtablissem
     return RefreshIndicator(
       onRefresh: _loadAllStatistics,
       child: SingleChildScrollView(
-        physics: AlwaysScrollableScrollPhysics(),
-        padding: EdgeInsets.all(16.0),
+        padding: EdgeInsets.all(16),
         child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(
-              "Résumé général",
-              style: TextStyle(
-                fontSize: 22, 
-                fontWeight: FontWeight.bold,
-                color: primaryColor,
-              ),
-            ),
-            SizedBox(height: 16),
-            
-            // Cartes des statistiques principales
             GridView.count(
               crossAxisCount: 2,
-              crossAxisSpacing: 10,
-              mainAxisSpacing: 10,
               shrinkWrap: true,
               physics: NeverScrollableScrollPhysics(),
               children: [
-                _buildStatCard("Professeurs", stats['totalProfs'].toString(), Icons.person, Colors.blue),
-                _buildStatCard("Élèves", stats['totalEleves'].toString(), Icons.people, Colors.green),
-                _buildStatCard("Événements", stats['totalEvenements'].toString(), Icons.event, Colors.orange),
-                _buildStatCard("Classes", stats['totalClasses'].toString(), Icons.school, Colors.purple),
+                _buildStatCard("Professeurs", stats['totalProfs'].toString(), Icons.person, orangeColor, () {
+                  _showProfListDialog();
+                }),
+                _buildStatCard("Élèves", stats['totalEleves'].toString(), Icons.people, greenColor, () {
+                  _showStudentListDialog();
+                }),
+                _buildStatCard("Événements", stats['totalEvenements'].toString(), Icons.event, orangeColor, () {
+                  _showEventListDialog();
+                }),
+                _buildStatCard("Classes", stats['totalClasses'].toString(), Icons.school, greenColor, () {
+                  _showClassListDialog();
+                }),
               ],
-            ),
-            
-            SizedBox(height: 24),
-            Text(
-              "Activité récente (30 derniers jours)",
-              style: TextStyle(
-                fontSize: 20, 
-                fontWeight: FontWeight.bold,
-                color: primaryColor,
-              ),
-            ),
-            SizedBox(height: 16),
-            Row(
-              children: [
-                Expanded(
-                  child: _buildStatCard("Ajouts", stats['ajoutsRecents'].toString(), Icons.add_circle, Colors.green),
-                ),
-                SizedBox(width: 10),
-                Expanded(
-                  child: _buildStatCard("Modifications", stats['modificationsRecentes'].toString(), Icons.edit, Colors.amber),
-                ),
-              ],
-            ),
-            
-            SizedBox(height: 24),
-            Text(
-              "Activité mensuelle",
-              style: TextStyle(
-                fontSize: 20, 
-                fontWeight: FontWeight.bold,
-                color: primaryColor,
-              ),
-            ),
-            SizedBox(height: 16),
-            Container(
-              height: 200,
-              child: _buildActivityChart(),
             ),
           ],
         ),
@@ -334,86 +322,50 @@ class _StatistiquesEtablissementScreenState extends State<StatistiquesEtablissem
   
   Widget _buildEventsTab() {
     return SingleChildScrollView(
-      padding: EdgeInsets.all(16.0),
+      padding: EdgeInsets.all(16),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            "Répartition des événements",
-            style: TextStyle(
-              fontSize: 20, 
-              fontWeight: FontWeight.bold,
-              color: primaryColor,
-            ),
-          ),
+          Text("Répartition des événements", style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: orangeColor)),
           SizedBox(height: 16),
           Container(
             height: 300,
-            padding: EdgeInsets.all(8),
             child: _buildPieChart(),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(15),
+              boxShadow: [BoxShadow(color: Colors.grey.withOpacity(0.1), blurRadius: 6)],
+            ),
           ),
           SizedBox(height: 24),
-          
-          // Tableau des événements par type
           Card(
             elevation: 3,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
             child: Padding(
               padding: EdgeInsets.all(16),
               child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
-                    "Détails des événements par type",
-                    style: TextStyle(
-                      fontWeight: FontWeight.bold,
-                      fontSize: 18,
-                    ),
-                  ),
+                  Text("Détails par type", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: orangeColor)),
                   SizedBox(height: 10),
                   Table(
-                    border: TableBorder.all(
-                      color: Colors.grey.shade300,
-                      width: 1,
-                    ),
+                    border: TableBorder.all(color: Colors.grey.shade300, borderRadius: BorderRadius.circular(5)),
                     children: [
                       TableRow(
-                        decoration: BoxDecoration(color: Colors.grey.shade200),
+                        decoration: BoxDecoration(color: greenColor.withOpacity(0.1)),
                         children: [
-                          Padding(
-                            padding: EdgeInsets.all(8),
-                            child: Text("Type d'événement", style: TextStyle(fontWeight: FontWeight.bold)),
-                          ),
-                          Padding(
-                            padding: EdgeInsets.all(8),
-                            child: Text("Nombre", style: TextStyle(fontWeight: FontWeight.bold)),
-                          ),
-                          Padding(
-                            padding: EdgeInsets.all(8),
-                            child: Text("Pourcentage", style: TextStyle(fontWeight: FontWeight.bold)),
-                          ),
+                          Padding(padding: EdgeInsets.all(8), child: Text("Type", style: TextStyle(fontWeight: FontWeight.bold))),
+                          Padding(padding: EdgeInsets.all(8), child: Text("Nombre", style: TextStyle(fontWeight: FontWeight.bold))),
+                          Padding(padding: EdgeInsets.all(8), child: Text("%", style: TextStyle(fontWeight: FontWeight.bold))),
                         ],
                       ),
-                      ...eventsByType.map((event) {
-                        final percentage = stats['totalEvenements']! > 0 
-                            ? (event['count'] / stats['totalEvenements']! * 100).toStringAsFixed(1)
-                            : '0.0';
-                        return TableRow(
-                          children: [
-                            Padding(
-                              padding: EdgeInsets.all(8),
-                              child: Text(event['type']),
-                            ),
-                            Padding(
-                              padding: EdgeInsets.all(8),
-                              child: Text(event['count'].toString()),
-                            ),
-                            Padding(
-                              padding: EdgeInsets.all(8),
-                              child: Text("$percentage%"),
-                            ),
-                          ],
-                        );
-                      }).toList(),
+                      ...eventsByType.map((event) => TableRow(
+                        children: [
+                          Padding(padding: EdgeInsets.all(8), child: Text(event['type'])),
+                          Padding(padding: EdgeInsets.all(8), child: Text(event['count'].toString())),
+                          Padding(padding: EdgeInsets.all(8), child: Text(
+                            "${(event['count'] / stats['totalEvenements']! * 100).toStringAsFixed(1)}%",
+                          )),
+                        ],
+                      )),
                     ],
                   ),
                 ],
@@ -426,117 +378,156 @@ class _StatistiquesEtablissementScreenState extends State<StatistiquesEtablissem
   }
   
   Widget _buildClassesTab() {
-    return SingleChildScrollView(
-      padding: EdgeInsets.all(16.0),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            "Élèves par classe",
-            style: TextStyle(
-              fontSize: 20, 
-              fontWeight: FontWeight.bold,
-              color: primaryColor,
-            ),
-          ),
-          SizedBox(height: 16),
-          Container(
-            height: 300,
-            child: _buildBarChart(),
-          ),
-          SizedBox(height: 24),
-          
-          // Tableau des classes
-          Card(
-            elevation: 3,
-            child: Padding(
-              padding: EdgeInsets.all(16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    "Détails des classes",
-                    style: TextStyle(
-                      fontWeight: FontWeight.bold,
-                      fontSize: 18,
-                    ),
-                  ),
-                  SizedBox(height: 10),
-                  Table(
-                    border: TableBorder.all(
-                      color: Colors.grey.shade300,
-                      width: 1,
-                    ),
-                    children: [
-                      TableRow(
-                        decoration: BoxDecoration(color: Colors.grey.shade200),
-                        children: [
-                          Padding(
-                            padding: EdgeInsets.all(8),
-                            child: Text("Classe", style: TextStyle(fontWeight: FontWeight.bold)),
-                          ),
-                          Padding(
-                            padding: EdgeInsets.all(8),
-                            child: Text("Nombre d'élèves", style: TextStyle(fontWeight: FontWeight.bold)),
-                          ),
-                        ],
+    return RefreshIndicator(
+      onRefresh: _loadClassesForTab,
+      child: SingleChildScrollView(
+        padding: EdgeInsets.all(16),
+        child: Column(
+          children: [
+            // Sélecteur de classe
+            Card(
+              elevation: 3,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+              child: Padding(
+                padding: EdgeInsets.all(16),
+                child: Column(
+                  children: [
+                    Text(
+                      "Sélectionnez une classe",
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                        color: orangeColor,
                       ),
-                      ...studentsPerClass.map((classData) {
-                        return TableRow(
-                          children: [
-                            Padding(
-                              padding: EdgeInsets.all(8),
-                              child: Text(classData['classe']),
-                            ),
-                            Padding(
-                              padding: EdgeInsets.all(8),
-                              child: Text(classData['count'].toString()),
-                            ),
-                          ],
-                        );
-                      }).toList(),
-                    ],
-                  ),
-                ],
+                    ),
+                    SizedBox(height: 10),
+                    if (isLoadingClasses)
+                      Center(child: CircularProgressIndicator())
+                    else if (classesList.isEmpty)
+                      Center(child: Text("Aucune classe disponible"))
+                    else
+                      _buildClassDropdown(),
+                  ],
+                ),
               ),
             ),
-          ),
-        ],
+            
+            SizedBox(height: 20),
+            
+            // Liste des élèves de la classe sélectionnée
+            if (selectedClassNumber != null)
+              Card(
+                elevation: 3,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+                child: Padding(
+                  padding: EdgeInsets.all(16),
+                  child: Column(
+                    children: [
+                      Text(
+                        "Élèves de la classe $selectedClassNumber",
+                        style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                          color: orangeColor,
+                        ),
+                      ),
+                      SizedBox(height: 10),
+                      if (isLoadingClassStudents)
+                        Center(child: CircularProgressIndicator())
+                      else if (classStudentsList.isEmpty)
+                        Center(child: Text("Aucun élève dans cette classe"))
+                      else
+                        _buildStudentList(),
+                    ],
+                  ),
+                ),
+              ),
+          ],
+        ),
       ),
     );
   }
   
-  Widget _buildStatCard(String title, String value, IconData icon, Color color) {
-    return Card(
-      elevation: 4,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(10),
+  Widget _buildClassDropdown() {
+    return DropdownButtonFormField<String>(
+      decoration: InputDecoration(
+        labelText: "Choisir une classe",
+        border: OutlineInputBorder(),
+        filled: true,
+        fillColor: Colors.white,
       ),
-      child: Padding(
-        padding: EdgeInsets.all(16),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(icon, size: 40, color: color),
-            SizedBox(height: 8),
-            Text(
-              value,
-              style: TextStyle(
-                fontSize: 24,
-                fontWeight: FontWeight.bold,
-                color: color,
-              ),
+      value: selectedClassNumber,
+      items: classesList.map<DropdownMenuItem<String>>((classe) => 
+        DropdownMenuItem<String>(
+          value: classe['numeroClasse'] as String,
+          child: Text("Classe ${classe['numeroClasse']} (${classe['niveau']})"),
+        )
+      ).toList(),
+      onChanged: (value) {
+        setState(() {
+          selectedClassNumber = value;
+        });
+        if (value != null) {
+          _loadStudentsForClass(value);
+        }
+      },
+    );
+  }
+  
+  Widget _buildStudentList() {
+    return ListView.builder(
+      shrinkWrap: true,
+      physics: NeverScrollableScrollPhysics(),
+      itemCount: classStudentsList.length,
+      itemBuilder: (context, index) {
+        final student = classStudentsList[index];
+        return Card(
+          margin: EdgeInsets.symmetric(vertical: 8),
+          elevation: 2,
+          child: ListTile(
+            leading: CircleAvatar(
+              backgroundColor: greenColor.withOpacity(0.2),
+              child: Icon(Icons.person, color: greenColor),
             ),
-            SizedBox(height: 4),
-            Text(
-              title,
-              style: TextStyle(
-                fontSize: 14,
-                color: Colors.grey[600],
-              ),
-              textAlign: TextAlign.center,
+            title: Text(
+              student['nomComplet'],
+              style: TextStyle(fontWeight: FontWeight.bold),
             ),
-          ],
+            subtitle: Text("Classe: ${student['numeroClasse']}"),
+            trailing: Icon(Icons.arrow_forward_ios, size: 16, color: Colors.grey),
+          ),
+        );
+      },
+    );
+  }
+  
+  Widget _buildStatCard(String title, String value, IconData icon, Color color, Function()? onTap) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Card(
+        elevation: 4,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+        child: Padding(
+          padding: EdgeInsets.all(16),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Container(
+                width: 50,
+                height: 50,
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(colors: [color.withOpacity(0.2), color.withOpacity(0.4)]),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Icon(icon, size: 30, color: color),
+              ),
+              SizedBox(height: 8),
+              Text(value, style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: color)),
+              SizedBox(height: 4),
+              Text(title, style: TextStyle(fontSize: 14, color: darkColor)),
+              if (onTap != null) Icon(Icons.info_outline, size: 16, color: Colors.grey),
+            ],
+          ),
         ),
       ),
     );
@@ -547,187 +538,212 @@ class _StatistiquesEtablissementScreenState extends State<StatistiquesEtablissem
       ? Center(child: Text("Aucune donnée disponible"))
       : PieChart(
           PieChartData(
-            sections: eventsByType.asMap().entries.map((entry) {
-              int idx = entry.key;
-              var data = entry.value;
-              List<Color> colors = [
-                Colors.blueAccent,
-                Colors.redAccent,
-                Colors.greenAccent,
-                Colors.orangeAccent,
-              ];
-              return PieChartSectionData(
-                color: colors[idx % colors.length],
-                value: data['count'].toDouble(),
-                title: '${data['type']}\n${data['count']}',
-                radius: 100,
-                titleStyle: TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.white,
-                ),
-              );
-            }).toList(),
+            sections: eventsByType.map((e) => PieChartSectionData(
+              color: _getColorForType(e['type']),
+              value: e['count'].toDouble(),
+              title: '${e['type']}\n${e['count']}',
+              radius: 100,
+              titleStyle: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.white),
+            )).toList(),
             sectionsSpace: 2,
             centerSpaceRadius: 40,
           ),
         );
   }
   
-  Widget _buildBarChart() {
-    return studentsPerClass.isEmpty
-      ? Center(child: Text("Aucune donnée disponible"))
-      : BarChart(
-          BarChartData(
-            alignment: BarChartAlignment.spaceAround,
-            maxY: studentsPerClass.isNotEmpty 
-                ? (studentsPerClass.map((e) => e['count'] as int).reduce((a, b) => a > b ? a : b) * 1.2)
-                : 100,
-            barTouchData: BarTouchData(
-              enabled: true,
-              touchTooltipData: BarTouchTooltipData(
-                // ignore: deprecated_member_use
-               //rection:Colors.blueGrey.withOpacity(0.9),
-                getTooltipItem: (group, groupIndex, rod, rodIndex) {
-                  return BarTooltipItem(
-                    '${studentsPerClass[groupIndex]['classe']}: ${rod.toY.round()} élèves',
-                    TextStyle(color: Colors.white),
-                  );
-                },
-              ),
-            ),
-            titlesData: FlTitlesData(
-              show: true,
-              bottomTitles: AxisTitles(
-                sideTitles: SideTitles(
-                  showTitles: true,
-                  getTitlesWidget: (value, meta) {
-                    return Padding(
-                      padding: const EdgeInsets.only(top: 8.0),
-                      child: Text(
-                        studentsPerClass[value.toInt()]['classe'],
-                        style: TextStyle(
-                          color: Colors.black,
-                          fontWeight: FontWeight.bold,
-                          fontSize: 10,
-                        ),
-                      ),
-                    );
-                  },
-                  reservedSize: 30,
-                ),
-              ),
-              leftTitles: AxisTitles(
-                sideTitles: SideTitles(
-                  showTitles: true,
-                  getTitlesWidget: (value, meta) {
-                    return Text(
-                      value.toInt().toString(),
-                      style: TextStyle(
-                        color: Colors.grey,
-                        fontSize: 12,
-                      ),
-                    );
-                  },
-                  reservedSize: 30,
-                ),
-              ),
-            ),
-            borderData: FlBorderData(
-              show: false,
-            ),
-            barGroups: studentsPerClass.asMap().entries.map((entry) {
-              int idx = entry.key;
-              var data = entry.value;
-              return BarChartGroupData(
-                x: idx,
-                barRods: [
-                  BarChartRodData(
-                    toY: data['count'].toDouble(),
-                    color: Colors.purpleAccent,
-                    width: 20,
-                    borderRadius: BorderRadius.vertical(top: Radius.circular(5)),
-                  ),
-                ],
-              );
-            }).toList(),
-          ),
-        );
+  Color _getColorForType(String type) {
+    switch (type) {
+      case 'Réunion': return Colors.blueAccent;
+      case 'Examen': return Colors.redAccent;
+      case 'Activité': return Colors.greenAccent;
+      default: return Colors.purpleAccent;
+    }
   }
   
-  Widget _buildActivityChart() {
-    return activityByMonth.isEmpty
-      ? Center(child: Text("Aucune donnée disponible"))
-      : LineChart(
-          LineChartData(
-            gridData: FlGridData(show: true),
-            titlesData: FlTitlesData(
-              show: true,
-              bottomTitles: AxisTitles(
-                sideTitles: SideTitles(
-                  showTitles: true,
-                  getTitlesWidget: (value, meta) {
-                    return Padding(
-                      padding: const EdgeInsets.only(top: 8.0),
-                      child: Text(
-                        activityByMonth[value.toInt()]['month'],
-                        style: TextStyle(
-                          color: Colors.black,
-                          fontWeight: FontWeight.bold,
-                          fontSize: 10,
-                        ),
-                      ),
-                    );
-                  },
-                  reservedSize: 30,
-                ),
+  void _showProfListDialog() {
+    showDialog(
+      context: context,
+      builder: (context) => Dialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+        child: Container(
+          width: MediaQuery.of(context).size.width * 0.8,
+          padding: EdgeInsets.all(16),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text("Liste des professeurs", style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: orangeColor)),
+              SizedBox(height: 16),
+              Expanded(
+                child: profsList.isEmpty
+                  ? Center(child: Text("Aucun professeur"))
+                  : ListView.builder(
+                      shrinkWrap: true,
+                      itemCount: profsList.length,
+                      itemBuilder: (context, index) {
+                        final prof = profsList[index];
+                        return ListTile(
+                          leading: Icon(Icons.person, color: orangeColor),
+                          title: Text("${prof['prenom']} ${prof['nom']}"),
+                        );
+                      },
+                    ),
               ),
-              leftTitles: AxisTitles(
-                sideTitles: SideTitles(
-                  showTitles: true,
-                  getTitlesWidget: (value, meta) {
-                    return Text(
-                      value.toInt().toString(),
-                      style: TextStyle(
-                        color: Colors.grey,
-                        fontSize: 12,
-                      ),
-                    );
-                  },
-                  reservedSize: 30,
-                ),
-              ),
-            ),
-            borderData: FlBorderData(show: true),
-            lineBarsData: [
-              LineChartBarData(
-                spots: activityByMonth.asMap().entries.map((entry) {
-                  int idx = entry.key;
-                  var data = entry.value;
-                  return FlSpot(idx.toDouble(), data['events'].toDouble());
-                }).toList(),
-                isCurved: true,
-                color: Colors.blueAccent,
-                barWidth: 3,
-                isStrokeCapRound: true,
-                dotData: FlDotData(show: true),
-                belowBarData: BarAreaData(show: false),
-              ),
-              LineChartBarData(
-                spots: activityByMonth.asMap().entries.map((entry) {
-                  int idx = entry.key;
-                  var data = entry.value;
-                  return FlSpot(idx.toDouble(), data['modifications'].toDouble());
-                }).toList(),
-                isCurved: true,
-                color: Colors.amberAccent,
-                barWidth: 3,
-                isStrokeCapRound: true,
-                dotData: FlDotData(show: true),
-                belowBarData: BarAreaData(show: false),
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: Text('Fermer', style: TextStyle(color: orangeColor)),
               ),
             ],
           ),
-        );
+        ),
+      ),
+    );
   }
+
+  void _showStudentListDialog() {
+    showDialog(
+      context: context,
+      builder: (context) => Dialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+        child: Container(
+          width: MediaQuery.of(context).size.width * 0.8,
+          padding: EdgeInsets.all(16),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text("Liste des élèves", style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: orangeColor)),
+              SizedBox(height: 16),
+              Expanded(
+                child: elevesList.isEmpty
+                  ? Center(child: Text("Aucun élève"))
+                  : ListView.builder(
+                      shrinkWrap: true,
+                      itemCount: elevesList.length,
+                      itemBuilder: (context, index) {
+                        final eleve = elevesList[index];
+                        final classe = classesList.firstWhere(
+                          (classe) => classe['id'] == eleve['idClasse'],
+                          orElse: () => {'numeroClasse': 'N/A', 'niveau': 'N/A'});
+                        
+                        return ListTile(
+                          leading: Icon(Icons.person, color: greenColor),
+                          title: Text("${eleve['prenom']} ${eleve['nom']}"),
+                          subtitle: Text("Classe: ${classe['numeroClasse']} (${classe['niveau']})"),
+                        );
+                      },
+                    ),
+              ),
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: Text('Fermer', style: TextStyle(color: orangeColor)),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+  
+  void _showEventListDialog() {
+    showDialog(
+      context: context,
+      builder: (context) => Dialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+        child: Container(
+          width: MediaQuery.of(context).size.width * 0.8,
+          padding: EdgeInsets.all(16),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text("Liste des événements", style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: orangeColor)),
+              SizedBox(height: 16),
+              Expanded(
+                child: evenementsList.isEmpty
+                  ? Center(child: Text("Aucun événement"))
+                  : ListView.builder(
+                      shrinkWrap: true,
+                      itemCount: evenementsList.length,
+                      itemBuilder: (context, index) {
+                        final event = evenementsList[index];
+                        return ListTile(
+                          leading: Icon(Icons.circle, color: _getColorForType(event['type']), size: 12),
+                          title: Text(event['type'], style: TextStyle(fontWeight: FontWeight.bold)),
+                          subtitle: event['description'].isNotEmpty 
+                              ? Text(event['description'])
+                              : null,
+                        );
+                      },
+                    ),
+              ),
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: Text('Fermer', style: TextStyle(color: orangeColor)),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+  
+  void _showClassListDialog() {
+    showDialog(
+      context: context,
+      builder: (context) => Dialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+        child: Container(
+          width: MediaQuery.of(context).size.width * 0.8,
+          padding: EdgeInsets.all(16),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text("Liste des classes", style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: orangeColor)),
+              SizedBox(height: 16),
+              Expanded(
+                child: classesList.isEmpty
+                  ? Center(child: Text("Aucune classe"))
+                  : ListView.builder(
+                      shrinkWrap: true,
+                      itemCount: classesList.length,
+                      itemBuilder: (context, index) {
+                        final classe = classesList[index];
+                        return ListTile(
+                          leading: Icon(Icons.school, color: greenColor),
+                          title: Text("Classe ${classe['numeroClasse']}"),
+                          subtitle: Text("Niveau: ${classe['niveau']}"),
+                        );
+                      },
+                    ),
+              ),
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: Text('Fermer', style: TextStyle(color: orangeColor)),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _SliverAppBarDelegate extends SliverPersistentHeaderDelegate {
+  final TabBar _tabBar;
+
+  _SliverAppBarDelegate(this._tabBar);
+
+  @override
+  double get minExtent => _tabBar.preferredSize.height;
+  @override
+  double get maxExtent => _tabBar.preferredSize.height;
+
+  @override
+  Widget build(BuildContext context, double shrinkOffset, bool overlapsContent) {
+    return Container(
+      color: Colors.white,
+      child: _tabBar,
+    );
+  }
+
+  @override
+  bool shouldRebuild(_SliverAppBarDelegate oldDelegate) => false;
 }

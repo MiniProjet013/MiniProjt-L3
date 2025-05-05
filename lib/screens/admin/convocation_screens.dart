@@ -1,13 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:intl/intl.dart';
-import 'abcenceselevefiltre.dart';
-class AbsencesScreen extends StatefulWidget {
+//import 'package:study/screens/admin/convocationdetailsscreen.dart';
+//import 'package:intl/intl.dart';
+
+class ConvocationScreen extends StatefulWidget {
   @override
-  _AbsencesScreenState createState() => _AbsencesScreenState();
+  _ConvocationScreenState createState() => _ConvocationScreenState();
 }
 
-class _AbsencesScreenState extends State<AbsencesScreen> {
+class _ConvocationScreenState extends State<ConvocationScreen> {
   final Color orangeColor = Color.fromARGB(255, 218, 64, 3);
   final Color greenColor = Color.fromARGB(255, 1, 110, 5);
   final Color lightColor = Color.fromARGB(255, 255, 255, 255);
@@ -15,30 +16,30 @@ class _AbsencesScreenState extends State<AbsencesScreen> {
   
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   bool isLoading = true;
-  List<DocumentSnapshot> absences = [];
+  List<DocumentSnapshot> convocations = [];
   String? errorMessage;
 
   @override
   void initState() {
     super.initState();
-    _fetchAbsences();
+    _fetchConvocations();
   }
 
-  Future<void> _fetchAbsences() async {
+  Future<void> _fetchConvocations() async {
     setState(() {
       isLoading = true;
       errorMessage = null;
     });
 
     try {
-      final QuerySnapshot snapshot = await _firestore.collection('absences').get();
+      final QuerySnapshot snapshot = await _firestore.collection('remarques').get();
       setState(() {
-        absences = snapshot.docs;
+        convocations = snapshot.docs;
         isLoading = false;
       });
     } catch (e) {
       setState(() {
-        errorMessage = 'Erreur lors du chargement des absences: $e';
+        errorMessage = 'Erreur lors du chargement des convocations: $e';
         isLoading = false;
       });
     }
@@ -46,17 +47,17 @@ class _AbsencesScreenState extends State<AbsencesScreen> {
 
   String _formatDate(String dateString) {
     try {
-      final parts = dateString.split('-');
+      // Format d'entrée "dd/MM/yyyy"
+      final parts = dateString.split('/');
       if (parts.length != 3) return dateString;
       
-      final formattedDate = '${parts[2]}/${parts[1]}/${parts[0]}';
+      final formattedDate = '${parts[0]}/${parts[1]}/${parts[2]}';
       return formattedDate;
     } catch (e) {
       return dateString;
     }
   }
-// Dans la méthode build de AbsencesScreen
- 
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -87,7 +88,7 @@ class _AbsencesScreenState extends State<AbsencesScreen> {
                       mainAxisAlignment: MainAxisAlignment.end,
                       children: [
                         Text(
-                          'ABSENCES',
+                          'CONVOCATIONS',
                           style: TextStyle(
                             color: Colors.white,
                             fontSize: 28,
@@ -95,9 +96,8 @@ class _AbsencesScreenState extends State<AbsencesScreen> {
                           ),
                         ),
                         SizedBox(height: 8),
-                        
                         Text(
-                          'Liste des absences des élèves',
+                          'Liste des convocations des élèves',
                           style: TextStyle(
                             color: Colors.white.withOpacity(0.9),
                             fontSize: 16,
@@ -139,7 +139,7 @@ class _AbsencesScreenState extends State<AbsencesScreen> {
                               ),
                               SizedBox(height: 24),
                               ElevatedButton(
-                                onPressed: _fetchAbsences,
+                                onPressed: _fetchConvocations,
                                 style: ElevatedButton.styleFrom(
                                   backgroundColor: greenColor,
                                   shape: RoundedRectangleBorder(
@@ -155,7 +155,7 @@ class _AbsencesScreenState extends State<AbsencesScreen> {
                           ),
                         ),
                       )
-                    : absences.isEmpty
+                    : convocations.isEmpty
                         ? SliverFillRemaining(
                             child: Center(
                               child: Column(
@@ -168,7 +168,7 @@ class _AbsencesScreenState extends State<AbsencesScreen> {
                                   ),
                                   SizedBox(height: 16),
                                   Text(
-                                    'Aucune absence trouvée',
+                                    'Aucune convocation trouvée',
                                     style: TextStyle(
                                       color: darkColor,
                                       fontSize: 18,
@@ -182,10 +182,10 @@ class _AbsencesScreenState extends State<AbsencesScreen> {
                         : SliverList(
                             delegate: SliverChildBuilderDelegate(
                               (context, index) {
-                                final absence = absences[index].data() as Map<String, dynamic>;
-                                return _buildAbsenceCard(absence, context);
+                                final convocation = convocations[index].data() as Map<String, dynamic>;
+                                return _buildConvocationCard(convocation, context);
                               },
-                              childCount: absences.length,
+                              childCount: convocations.length,
                             ),
                           ),
           ),
@@ -193,7 +193,7 @@ class _AbsencesScreenState extends State<AbsencesScreen> {
       ),
       floatingActionButton: FloatingActionButton(
         onPressed: () {
-          // Navigation pour ajouter une nouvelle absence
+          // Navigation pour ajouter une nouvelle convocation
           // Vous pouvez implémenter cette fonctionnalité si nécessaire
         },
         backgroundColor: orangeColor,
@@ -202,29 +202,16 @@ class _AbsencesScreenState extends State<AbsencesScreen> {
     );
   }
 
-  Widget _buildAbsenceCard(Map<String, dynamic> absence, BuildContext context) {
-    final classeId = absence['classeId'] ?? '';
-    final date = absence['date'] ?? '';
-    final eleveId = absence['eleveId'] ?? '';
-    final heure = absence['heure'] ?? '';
-    final matiere = absence['matiere'] ?? '';
-    final nom = absence['nom'] ?? '';
-    final prenom = absence['prenom'] ?? '';
-    final timestamp = absence['timestamp'] ?? '';
-    
-    // Détermine si c'est une absence du matin ou de l'après-midi basé sur l'heure
-    bool isMorning = true;
-    try {
-      final hourMinute = heure.split(':');
-      if (hourMinute.length > 0) {
-        final hour = int.tryParse(hourMinute[0]) ?? 8;
-        if (hour >= 12) {
-          isMorning = false;
-        }
-      }
-    } catch (e) {
-      // En cas d'erreur de format, on garde la valeur par défaut (matin)
-    }
+  Widget _buildConvocationCard(Map<String, dynamic> convocation, BuildContext context) {
+    final anneeScolaire = convocation['anneeScolaire'] ?? '';
+    final classeId = convocation['classeId'] ?? '';
+    final classeNiveaux = convocation['classeNiveaux'] ?? '';
+    final classeNumero = convocation['classeNumero'] ?? '';
+    final date = convocation['date'] ?? '';
+    final eleveId = convocation['eleveId'] ?? '';
+    final eleveNom = convocation['eleveNom'] ?? '';
+    final remarque = convocation['remarque'] ?? '';
+    final timestamp = convocation['timestamp'] ?? '';
 
     return Card(
       margin: EdgeInsets.only(bottom: 16),
@@ -235,7 +222,7 @@ class _AbsencesScreenState extends State<AbsencesScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // En-tête avec gradient
+          // En-tête de la carte avec gradient
           Container(
             height: 80,
             decoration: BoxDecoration(
@@ -243,8 +230,8 @@ class _AbsencesScreenState extends State<AbsencesScreen> {
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
                 colors: [
-                  isMorning ? orangeColor.withOpacity(0.8) : greenColor.withOpacity(0.8),
-                  isMorning ? greenColor.withOpacity(0.5) : orangeColor.withOpacity(0.5),
+                  orangeColor.withOpacity(0.8),
+                  greenColor.withOpacity(0.8),
                 ],
               ),
               borderRadius: BorderRadius.only(
@@ -264,7 +251,7 @@ class _AbsencesScreenState extends State<AbsencesScreen> {
                       borderRadius: BorderRadius.circular(10),
                     ),
                     child: Icon(
-                      isMorning ? Icons.wb_sunny : Icons.nights_stay,
+                      Icons.notification_important,
                       color: Colors.white,
                     ),
                   ),
@@ -275,7 +262,7 @@ class _AbsencesScreenState extends State<AbsencesScreen> {
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
                         Text(
-                          '$prenom $nom',
+                          'Convocation: $eleveNom',
                           style: TextStyle(
                             color: Colors.white,
                             fontWeight: FontWeight.bold,
@@ -285,7 +272,7 @@ class _AbsencesScreenState extends State<AbsencesScreen> {
                         ),
                         SizedBox(height: 4),
                         Text(
-                          _formatDate(date) + ' - ' + heure,
+                          _formatDate(date),
                           style: TextStyle(
                             color: Colors.white.withOpacity(0.9),
                             fontSize: 14,
@@ -294,117 +281,51 @@ class _AbsencesScreenState extends State<AbsencesScreen> {
                       ],
                     ),
                   ),
-                  Container(
-                    padding: EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(20),
-                    ),
-                    child: Text(
-                      matiere,
-                      style: TextStyle(
-                        color: isMorning ? orangeColor : greenColor,
-                        fontWeight: FontWeight.bold,
-                        fontSize: 12,
-                      ),
-                    ),
-                  ),
                 ],
               ),
             ),
           ),
           
-          // Contenu détaillé
+          // Contenu de la convocation
           Padding(
             padding: const EdgeInsets.all(16.0),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 _buildInfoRow(
-                  'ID Élève',
-                  eleveId,
-                  Icons.person,
-                  orangeColor,
-                ),
-                _buildInfoRow(
-                  'Classe',
-                  classeId,
-                  Icons.class_,
-                  greenColor,
-                ),
-                _buildInfoRow(
-                  'Date',
-                  _formatDate(date),
+                  'Année Scolaire',
+                  anneeScolaire,
                   Icons.calendar_today,
                   orangeColor,
                 ),
                 _buildInfoRow(
-                  'Heure',
-                  heure,
-                  Icons.access_time,
+                  'Classe',
+                  'ID: $classeId - $classeNiveaux (Numéro: $classeNumero)',
+                  Icons.class_,
                   greenColor,
                 ),
                 _buildInfoRow(
-                  'Matière',
-                  matiere,
-                  Icons.book,
+                  'Élève',
+                  'ID: $eleveId - $eleveNom',
+                  Icons.person,
                   orangeColor,
                 ),
-                Divider(height: 24),
-                Row(
-                  children: [
-                    Icon(
-                      Icons.history,
-                      size: 16,
-                      color: darkColor.withOpacity(0.5),
-                    ),
-                    SizedBox(width: 8),
-                    Expanded(
-                      child: Text(
-                        'Enregistré le: $timestamp',
-                        style: TextStyle(
-                          color: darkColor.withOpacity(0.5),
-                          fontSize: 12,
-                          fontStyle: FontStyle.italic,
-                        ),
-                      ),
-                    ),
-                  ],
+                Divider(height: 32),
+                _buildRemarkSection(remarque),
+                Divider(height: 32),
+                Text(
+                  'Enregistré le: $timestamp',
+                  style: TextStyle(
+                    color: darkColor.withOpacity(0.6),
+                    fontSize: 12,
+                    fontStyle: FontStyle.italic,
+                  ),
                 ),
               ],
             ),
           ),
           
           // Boutons d'actions
-          Padding(
-            padding: const EdgeInsets.fromLTRB(8, 0, 8, 8),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.end,
-              children: [
-                TextButton.icon(
-                  onPressed: () {
-                    // Fonction pour justifier l'absence
-                  },
-                  icon: Icon(Icons.fact_check, color: greenColor),
-                  label: Text(
-                    'Justifiée',
-                    style: TextStyle(color: greenColor),
-                  ),
-                ),
-                SizedBox(width: 8),
-                TextButton.icon(
-                  onPressed: () {
-                    // Fonction pour notifier les parents
-                  },
-                  icon: Icon(Icons.notifications_active, color: orangeColor),
-                  label: Text(
-                    'Notifier',
-                    style: TextStyle(color: orangeColor),
-                  ),
-                ),
-              ],
-            ),
-          ),
         ],
       ),
     );
@@ -456,6 +377,52 @@ class _AbsencesScreenState extends State<AbsencesScreen> {
           ),
         ],
       ),
+    );
+  }
+
+  Widget _buildRemarkSection(String remark) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Icon(
+              Icons.comment,
+              size: 18,
+              color: orangeColor,
+            ),
+            SizedBox(width: 8),
+            Text(
+              'convocation',
+              style: TextStyle(
+                color: orangeColor,
+                fontWeight: FontWeight.bold,
+                fontSize: 14,
+              ),
+            ),
+          ],
+        ),
+        SizedBox(height: 8),
+        Container(
+          padding: EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            color: orangeColor.withOpacity(0.05),
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(
+              color: orangeColor.withOpacity(0.2),
+              width: 1,
+            ),
+          ),
+          child: Text(
+            remark,
+            style: TextStyle(
+              color: darkColor,
+              fontSize: 14,
+              height: 1.4,
+            ),
+          ),
+        ),
+      ],
     );
   }
 }

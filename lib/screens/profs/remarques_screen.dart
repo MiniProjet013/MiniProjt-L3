@@ -19,6 +19,12 @@ class _RemarquesScreenState extends State<RemarquesScreen> {
   bool isLoadingClasses = true;
   bool isLoadingEleves = false;
 
+  // Couleurs pour correspondre au style AjouterProfScreen
+  final Color orangeColor = Color.fromARGB(255, 218, 64, 3);
+  final Color greenColor = Color.fromARGB(232, 2, 196, 34);
+  final Color lightColor = Color.fromARGB(255, 255, 255, 255);
+  final Color darkColor = Color(0xFF333333);
+
   final FirebaseFirestore _db = FirebaseFirestore.instance;
 
   @override
@@ -213,8 +219,8 @@ class _RemarquesScreenState extends State<RemarquesScreen> {
       
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text("✅ Remarque ajoutée avec succès!"),
-          backgroundColor: Colors.green,
+          content: Text("✅ Convocation ajoutée avec succès!"),
+          backgroundColor: greenColor,
         ),
       );
       
@@ -225,290 +231,497 @@ class _RemarquesScreenState extends State<RemarquesScreen> {
         remarqueController.clear();
       });
     } catch (e) {
-      print("❌ Erreur lors de l'ajout de la remarque: $e");
+      print("❌ Erreur lors de l'ajout de la convocation: $e");
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text("❌ Erreur lors de l'ajout de la remarque."),
+          content: Text("❌ Erreur lors de l'ajout de la convocation."),
           backgroundColor: Colors.red,
         ),
       );
     }
   }
 
+  // Widget de champ de saisie personnalisé avec cadre
+  Widget _buildInputField({
+    required String label,
+    TextEditingController? controller,
+    bool readOnly = false,
+    bool multiline = false,
+    Icon? suffixIcon,
+    VoidCallback? onTap,
+  }) {
+    return Container(
+      margin: EdgeInsets.only(bottom: 16.0),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: darkColor.withOpacity(0.2),
+          width: 1.0,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.grey.withOpacity(0.1),
+            spreadRadius: 1,
+            blurRadius: 4,
+            offset: Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Padding(
+        padding: EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              label,
+              style: TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.w500,
+                color: darkColor.withOpacity(0.7),
+              ),
+            ),
+            if (controller != null)
+              TextField(
+                controller: controller,
+                readOnly: readOnly,
+                maxLines: multiline ? 5 : 1,
+                onTap: onTap,
+                style: TextStyle(
+                  fontSize: 16,
+                  color: darkColor,
+                  fontWeight: FontWeight.w500,
+                ),
+                decoration: InputDecoration(
+                  border: InputBorder.none,
+                  suffixIcon: suffixIcon,
+                  contentPadding: EdgeInsets.zero,
+                ),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // Widget pour les menus déroulants
+  Widget _buildDropdownField<T>({
+    required String label,
+    required T? value,
+    required List<DropdownMenuItem<T>> items,
+    required void Function(T?) onChanged,
+    bool isLoading = false,
+  }) {
+    return Container(
+      margin: EdgeInsets.only(bottom: 16.0),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: darkColor.withOpacity(0.2),
+          width: 1.0,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.grey.withOpacity(0.1),
+            spreadRadius: 1,
+            blurRadius: 4,
+            offset: Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Padding(
+        padding: EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              label,
+              style: TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.w500,
+                color: darkColor.withOpacity(0.7),
+              ),
+            ),
+            isLoading
+                ? Center(
+                    child: Padding(
+                      padding: EdgeInsets.symmetric(vertical: 8),
+                      child: SizedBox(
+                        height: 20,
+                        width: 20,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          valueColor: AlwaysStoppedAnimation<Color>(greenColor),
+                        ),
+                      ),
+                    ),
+                  )
+                : DropdownButtonHideUnderline(
+                    child: DropdownButton<T>(
+                      value: value,
+                      items: items,
+                      onChanged: onChanged,
+                      isExpanded: true,
+                      icon: Icon(Icons.arrow_drop_down, color: greenColor),
+                      style: TextStyle(
+                        fontSize: 16,
+                        color: darkColor,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ),
+          ],
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: Text("Remarques"),
-        backgroundColor: Color.fromARGB(232, 2, 196, 34),
-      ),
-      body: isLoadingClasses
-          ? Center(child: CircularProgressIndicator())
-          : SingleChildScrollView(
-              padding: EdgeInsets.all(16.0),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // Titre de la page
-                  Center(
-                    child: Text(
-                      "Ajouter une remarque",
-                      style: TextStyle(
-                        fontSize: 22, 
-                        fontWeight: FontWeight.bold,
-                        color: Color.fromARGB(232, 2, 196, 34),
-                      ),
-                    ),
+      backgroundColor: lightColor,
+      body: CustomScrollView(
+        slivers: [
+          // AppBar avec gradient
+          SliverAppBar(
+            expandedHeight: 150.0,
+            floating: false,
+            pinned: true,
+            leading: IconButton(
+              icon: Icon(Icons.arrow_back, color: Colors.white),
+              onPressed: () => Navigator.pop(context),
+            ),
+            flexibleSpace: FlexibleSpaceBar(
+              background: Container(
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: [orangeColor.withOpacity(0.8), greenColor.withOpacity(0.8)],
                   ),
-                  SizedBox(height: 20),
-                  
-                  // Section Classe
-                  Container(
-                    padding: EdgeInsets.all(15),
-                    decoration: BoxDecoration(
-                      color: Colors.grey[100],
-                      borderRadius: BorderRadius.circular(10),
-                      border: Border.all(color: Colors.grey[300]!),
-                    ),
+                ),
+                child: SafeArea(
+                  child: Padding(
+                    padding: const EdgeInsets.all(20.0),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisAlignment: MainAxisAlignment.end,
                       children: [
                         Text(
-                          "Classe",
+                          'Convocations',
                           style: TextStyle(
-                            fontSize: 16, 
+                            color: Colors.white,
+                            fontSize: 28,
                             fontWeight: FontWeight.bold,
-                            color: Colors.black87,
                           ),
                         ),
                         SizedBox(height: 8),
-                        classes.isEmpty 
-                          ? Text(
-                              "Aucune classe disponible",
-                              style: TextStyle(color: Colors.red),
-                            )
-                          : DropdownButtonFormField<String>(
-                              value: selectedClasseId,
-                              decoration: InputDecoration(
-                                hintText: "Sélectionner une classe",
-                                filled: true,
-                                fillColor: Colors.white,
-                                border: OutlineInputBorder(
-                                  borderRadius: BorderRadius.circular(8),
-                                ),
-                              ),
-                              items: classes.map((classe) {
-                                String displayText = "Classe ${classe['numeroClasse']}";
-                                if (classe['niveauxEtude'] is List && (classe['niveauxEtude'] as List).isNotEmpty) {
-                                  displayText += " - ${(classe['niveauxEtude'] as List).join(', ')}";
-                                }
-                                return DropdownMenuItem<String>(
-                                  value: classe['id'],
-                                  child: Text(displayText),
-                                );
-                              }).toList(),
-                              onChanged: (value) {
-                                setState(() {
-                                  selectedClasseId = value;
-                                  selectedEleveId = null;
-                                });
-                                if (value != null) {
-                                  fetchEleves(value);
-                                }
-                              },
-                            ),
-                      ],
-                    ),
-                  ),
-
-                  SizedBox(height: 15),
-
-                  // Section Élève
-                  Container(
-                    padding: EdgeInsets.all(15),
-                    decoration: BoxDecoration(
-                      color: Colors.grey[100],
-                      borderRadius: BorderRadius.circular(10),
-                      border: Border.all(color: Colors.grey[300]!),
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
                         Text(
-                          "Élève",
+                          "Ajouter une nouvelle convocation",
                           style: TextStyle(
-                            fontSize: 16, 
-                            fontWeight: FontWeight.bold,
-                            color: Colors.black87,
-                          ),
-                        ),
-                        SizedBox(height: 8),
-                        isLoadingEleves
-                          ? Center(
-                              child: Padding(
-                                padding: EdgeInsets.symmetric(vertical: 10),
-                                child: CircularProgressIndicator(strokeWidth: 2),
-                              ),
-                            )
-                          : DropdownButtonFormField<String>(
-                              value: selectedEleveId,
-                              decoration: InputDecoration(
-                                hintText: selectedClasseId == null 
-                                  ? "Veuillez d'abord sélectionner une classe" 
-                                  : "Sélectionner un élève",
-                                filled: true,
-                                fillColor: Colors.white,
-                                border: OutlineInputBorder(
-                                  borderRadius: BorderRadius.circular(8),
-                                ),
-                              ),
-                              items: eleves.map((eleve) {
-                                return DropdownMenuItem<String>(
-                                  value: eleve['id'],
-                                  child: Text(eleve['nomComplet']),
-                                );
-                              }).toList(),
-                              onChanged: selectedClasseId == null
-                                ? null
-                                : (value) {
-                                    setState(() {
-                                      selectedEleveId = value;
-                                    });
-                                  },
-                            ),
-                      ],
-                    ),
-                  ),
-
-                  SizedBox(height: 15),
-
-                  // Section Date
-                  Container(
-                    padding: EdgeInsets.all(15),
-                    decoration: BoxDecoration(
-                      color: Colors.grey[100],
-                      borderRadius: BorderRadius.circular(10),
-                      border: Border.all(color: Colors.grey[300]!),
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          "Date",
-                          style: TextStyle(
-                            fontSize: 16, 
-                            fontWeight: FontWeight.bold,
-                            color: Colors.black87,
-                          ),
-                        ),
-                        SizedBox(height: 8),
-                        TextFormField(
-                          decoration: InputDecoration(
-                            hintText: "Sélectionner une date",
-                            suffixIcon: Icon(Icons.calendar_today),
-                            filled: true,
-                            fillColor: Colors.white,
-                            border: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                          ),
-                          readOnly: true,
-                          controller: TextEditingController(text: selectedDate ?? ''),
-                          onTap: () async {
-                            DateTime? pickedDate = await showDatePicker(
-                              context: context,
-                              initialDate: DateTime.now(),
-                              firstDate: DateTime(2020),
-                              lastDate: DateTime(2030),
-                              builder: (context, child) {
-                                return Theme(
-                                  data: Theme.of(context).copyWith(
-                                    colorScheme: ColorScheme.light(
-                                      primary: Color.fromARGB(232, 2, 196, 34),
-                                    ),
-                                  ),
-                                  child: child!,
-                                );
-                              },
-                            );
-                            if (pickedDate != null) {
-                              setState(() {
-                                selectedDate = "${pickedDate.day}/${pickedDate.month}/${pickedDate.year}";
-                              });
-                            }
-                          },
-                        ),
-                      ],
-                    ),
-                  ),
-
-                  SizedBox(height: 15),
-
-                  // Section Remarque
-                  Container(
-                    padding: EdgeInsets.all(15),
-                    decoration: BoxDecoration(
-                      color: Colors.grey[100],
-                      borderRadius: BorderRadius.circular(10),
-                      border: Border.all(color: Colors.grey[300]!),
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          "Remarque",
-                          style: TextStyle(
-                            fontSize: 16, 
-                            fontWeight: FontWeight.bold,
-                            color: Colors.black87,
-                          ),
-                        ),
-                        SizedBox(height: 8),
-                        TextFormField(
-                          controller: remarqueController,
-                          maxLines: 5,
-                          decoration: InputDecoration(
-                            hintText: "Écrire une remarque...",
-                            filled: true,
-                            fillColor: Colors.white,
-                            border: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(8),
-                            ),
+                            color: Colors.white.withOpacity(0.9),
+                            fontSize: 16,
                           ),
                         ),
                       ],
                     ),
                   ),
-
-                  SizedBox(height: 25),
-
-                  // Bouton pour publier
-                  Center(
-                    child: ElevatedButton.icon(
-                      onPressed: () {
-                        saveRemarque();
-                      },
-                      icon: Icon(Icons.check, color: Colors.white),
-                      label: Text(
-                        "Enregistrer la remarque",
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.deepOrangeAccent,
-                        padding: EdgeInsets.symmetric(horizontal: 30, vertical: 15),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(10),
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
+                ),
               ),
             ),
+          ),
+          
+          // Formulaire ou indicateur de chargement
+          isLoadingClasses
+              ? SliverFillRemaining(
+                  child: Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        CircularProgressIndicator(
+                          valueColor: AlwaysStoppedAnimation<Color>(orangeColor),
+                        ),
+                        SizedBox(height: 16),
+                        Text(
+                          "Chargement des données...",
+                          style: TextStyle(
+                            fontSize: 16,
+                            color: darkColor,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                )
+              : SliverToBoxAdapter(
+                  child: Padding(
+                    padding: EdgeInsets.all(20.0),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        // Section Classe
+                        Container(
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(16),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.grey.withOpacity(0.1),
+                                spreadRadius: 1,
+                                blurRadius: 6,
+                                offset: Offset(0, 3),
+                              ),
+                            ],
+                          ),
+                          padding: EdgeInsets.all(20),
+                          margin: EdgeInsets.only(bottom: 20),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Row(
+                                children: [
+                                  Container(
+                                    padding: EdgeInsets.all(8),
+                                    decoration: BoxDecoration(
+                                      color: orangeColor.withOpacity(0.1),
+                                      borderRadius: BorderRadius.circular(8),
+                                    ),
+                                    child: Icon(
+                                      Icons.class_,
+                                      color: orangeColor,
+                                      size: 24,
+                                    ),
+                                  ),
+                                  SizedBox(width: 16),
+                                  Text(
+                                    "Sélection de la classe",
+                                    style: TextStyle(
+                                      fontSize: 18,
+                                      fontWeight: FontWeight.bold,
+                                      color: darkColor,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              SizedBox(height: 20),
+                              
+                              _buildDropdownField<String>(
+                                label: "Classe",
+                                value: selectedClasseId,
+                                items: classes.map((classe) {
+                                  String displayText = "Classe ${classe['numeroClasse']}";
+                                  if (classe['niveauxEtude'] is List && (classe['niveauxEtude'] as List).isNotEmpty) {
+                                    displayText += " - ${(classe['niveauxEtude'] as List).join(', ')}";
+                                  }
+                                  return DropdownMenuItem<String>(
+                                    value: classe['id'],
+                                    child: Text(displayText),
+                                  );
+                                }).toList(),
+                                onChanged: (value) {
+                                  setState(() {
+                                    selectedClasseId = value;
+                                    selectedEleveId = null;
+                                  });
+                                  if (value != null) {
+                                    fetchEleves(value);
+                                  }
+                                },
+                              ),
+                            ],
+                          ),
+                        ),
+                        
+                        // Section Élève
+                        Container(
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(16),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.grey.withOpacity(0.1),
+                                spreadRadius: 1,
+                                blurRadius: 6,
+                                offset: Offset(0, 3),
+                              ),
+                            ],
+                          ),
+                          padding: EdgeInsets.all(20),
+                          margin: EdgeInsets.only(bottom: 20),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Row(
+                                children: [
+                                  Container(
+                                    padding: EdgeInsets.all(8),
+                                    decoration: BoxDecoration(
+                                      color: greenColor.withOpacity(0.1),
+                                      borderRadius: BorderRadius.circular(8),
+                                    ),
+                                    child: Icon(
+                                      Icons.person,
+                                      color: greenColor,
+                                      size: 24,
+                                    ),
+                                  ),
+                                  SizedBox(width: 16),
+                                  Text(
+                                    "Informations de l'élève",
+                                    style: TextStyle(
+                                      fontSize: 18,
+                                      fontWeight: FontWeight.bold,
+                                      color: darkColor,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              SizedBox(height: 20),
+                              
+                              _buildDropdownField<String>(
+                                label: "Élève",
+                                value: selectedEleveId,
+                                isLoading: isLoadingEleves,
+                                items: eleves.map((eleve) {
+                                  return DropdownMenuItem<String>(
+                                    value: eleve['id'],
+                                    child: Text(eleve['nomComplet']),
+                                  );
+                                }).toList(),
+                                onChanged: selectedClasseId == null
+                                  ? (value) {}
+                                  : (value) {
+                                      setState(() {
+                                        selectedEleveId = value;
+                                      });
+                                    },
+                              ),
+                              
+                              _buildInputField(
+                                label: "Date de convocation",
+                                controller: TextEditingController(text: selectedDate ?? ''),
+                                readOnly: true,
+                                suffixIcon: Icon(Icons.calendar_today, color: greenColor),
+                                onTap: () async {
+                                  DateTime? pickedDate = await showDatePicker(
+                                    context: context,
+                                    initialDate: DateTime.now(),
+                                    firstDate: DateTime(2020),
+                                    lastDate: DateTime(2030),
+                                    builder: (context, child) {
+                                      return Theme(
+                                        data: Theme.of(context).copyWith(
+                                          colorScheme: ColorScheme.light(
+                                            primary: greenColor,
+                                          ),
+                                        ),
+                                        child: child!,
+                                      );
+                                    },
+                                  );
+                                  if (pickedDate != null) {
+                                    setState(() {
+                                      selectedDate = "${pickedDate.day}/${pickedDate.month}/${pickedDate.year}";
+                                    });
+                                  }
+                                },
+                              ),
+                            ],
+                          ),
+                        ),
+                        
+                        // Section Remarque
+                        Container(
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(16),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.grey.withOpacity(0.1),
+                                spreadRadius: 1,
+                                blurRadius: 6,
+                                offset: Offset(0, 3),
+                              ),
+                            ],
+                          ),
+                          padding: EdgeInsets.all(20),
+                          margin: EdgeInsets.only(bottom: 20),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Row(
+                                children: [
+                                  Container(
+                                    padding: EdgeInsets.all(8),
+                                    decoration: BoxDecoration(
+                                      color: orangeColor.withOpacity(0.1),
+                                      borderRadius: BorderRadius.circular(8),
+                                    ),
+                                    child: Icon(
+                                      Icons.description,
+                                      color: orangeColor,
+                                      size: 24,
+                                    ),
+                                  ),
+                                  SizedBox(width: 16),
+                                  Text(
+                                    "Détails de la convocation",
+                                    style: TextStyle(
+                                      fontSize: 18,
+                                      fontWeight: FontWeight.bold,
+                                      color: darkColor,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              SizedBox(height: 20),
+                              
+                              _buildInputField(
+                                label: "Motif de la convocation",
+                                controller: remarqueController,
+                                multiline: true,
+                              ),
+                            ],
+                          ),
+                        ),
+                        
+                        // Bouton d'enregistrement
+                        Container(
+                          height: 55,
+                          margin: EdgeInsets.only(bottom: 30),
+                          child: ElevatedButton(
+                            onPressed: saveRemarque,
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: orangeColor,
+                              foregroundColor: Colors.white,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              elevation: 3,
+                            ),
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Icon(Icons.save),
+                                SizedBox(width: 8),
+                                Text(
+                                  "Enregistrer la convocation",
+                                  style: TextStyle(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+        ],
+      ),
     );
   }
 }

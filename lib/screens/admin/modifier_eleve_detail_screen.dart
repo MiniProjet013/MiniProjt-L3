@@ -25,6 +25,12 @@ class _ModifierEleveScreenState extends State<ModifierEleveScreen> {
   bool isLoading = true;
   bool classChanged = false;
   
+  // Colors to match the ModifierScreen
+  final Color orangeColor = Color.fromARGB(255, 218, 64, 3);
+  final Color greenColor = Color.fromARGB(255, 1, 110, 5);
+  final Color lightColor = Color.fromARGB(255, 255, 255, 255);
+  final Color darkColor = Color(0xFF333333);
+  
   // Las mismas listas de la interfaz original
   final List<String> levels = [
     "1ère année", "2ème année", "3ème année",
@@ -194,7 +200,7 @@ class _ModifierEleveScreenState extends State<ModifierEleveScreen> {
       
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
         content: Text("✅ Données de l'élève modifiées avec succès!"),
-        backgroundColor: Colors.green,
+        backgroundColor: greenColor,
       ));
       
       Navigator.pop(context, true); // Volver con señal de éxito
@@ -254,144 +260,477 @@ class _ModifierEleveScreenState extends State<ModifierEleveScreen> {
     }
   }
 
+  // Custom input field to maintain consistent design
+  Widget _buildInputField({
+    required TextEditingController controller,
+    required String label,
+    bool readOnly = false,
+    Icon? suffixIcon,
+    VoidCallback? onTap,
+  }) {
+    return Container(
+      margin: EdgeInsets.only(bottom: 16.0),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.grey.withOpacity(0.1),
+            spreadRadius: 1,
+            blurRadius: 4,
+            offset: Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Padding(
+        padding: EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              label,
+              style: TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.w500,
+                color: darkColor.withOpacity(0.7),
+              ),
+            ),
+            TextField(
+              controller: controller,
+              readOnly: readOnly,
+              onTap: onTap,
+              style: TextStyle(
+                fontSize: 16,
+                color: darkColor,
+                fontWeight: FontWeight.w500,
+              ),
+              decoration: InputDecoration(
+                border: InputBorder.none,
+                suffixIcon: suffixIcon,
+                contentPadding: EdgeInsets.zero,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // Custom dropdown field to maintain consistent design
+  Widget _buildDropdownField<T>({
+    required String label,
+    required T? value,
+    required List<DropdownMenuItem<T>> items,
+    required void Function(T?) onChanged,
+  }) {
+    return Container(
+      margin: EdgeInsets.only(bottom: 16.0),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.grey.withOpacity(0.1),
+            spreadRadius: 1,
+            blurRadius: 4,
+            offset: Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Padding(
+        padding: EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              label,
+              style: TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.w500,
+                color: darkColor.withOpacity(0.7),
+              ),
+            ),
+            DropdownButtonHideUnderline(
+              child: DropdownButton<T>(
+                value: value,
+                items: items,
+                onChanged: onChanged,
+                isExpanded: true,
+                icon: Icon(Icons.arrow_drop_down, color: greenColor),
+                style: TextStyle(
+                  fontSize: 16,
+                  color: darkColor,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        backgroundColor: Color.fromARGB(232, 2, 196, 34),
-        title: Text("Modifier les données de l'élève"),
-      ),
-      body: isLoading 
-        ? Center(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                CircularProgressIndicator(),
-                SizedBox(height: 16),
-                Text("Chargement des données...", style: TextStyle(fontSize: 16)),
-              ],
+      backgroundColor: lightColor,
+      body: CustomScrollView(
+        slivers: [
+          // Gradient AppBar
+          SliverAppBar(
+            expandedHeight: 150.0,
+            floating: false,
+            pinned: true,
+            leading: IconButton(
+              icon: Icon(Icons.arrow_back, color: Colors.white),
+              onPressed: () => Navigator.pop(context),
             ),
-          )
-        : Padding(
-          padding: EdgeInsets.all(16.0),
-          child: ListView(
-            children: [
-              TextField(
-                controller: nameController, 
-                decoration: InputDecoration(
-                  labelText: "Nom", 
-                  border: OutlineInputBorder()
-                )
-              ),
-              SizedBox(height: 10),
-              TextField(
-                controller: surnameController, 
-                decoration: InputDecoration(
-                  labelText: "Prénom", 
-                  border: OutlineInputBorder()
-                )
-              ),
-              SizedBox(height: 10),
-              Text("Date de naissance", style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
-              TextField(
-                decoration: InputDecoration(
-                  hintText: "Sélectionner une date",
-                  suffixIcon: Icon(Icons.calendar_today),
-                  border: OutlineInputBorder(),
-                ),
-                readOnly: true,
-                controller: TextEditingController(text: selectedDate),
-                onTap: () async {
-                  DateTime? pickedDate = await showDatePicker(
-                    context: context,
-                    initialDate: DateTime.now(),
-                    firstDate: DateTime(2000),
-                    lastDate: DateTime(2101),
-                  );
-                  if (pickedDate != null) {
-                    setState(() {
-                      selectedDate = "${pickedDate.day}/${pickedDate.month}/${pickedDate.year}";
-                    });
-                  }
-                },
-              ),
-              SizedBox(height: 10),
-              TextField(
-                controller: idController, 
-                decoration: InputDecoration(
-                  labelText: "ID Élève", 
-                  border: OutlineInputBorder()
-                ), 
-                readOnly: true
-              ),
-              SizedBox(height: 10),
-              DropdownButtonFormField<String>(
-                decoration: InputDecoration(
-                  labelText: "Niveau d'étude", 
-                  border: OutlineInputBorder()
-                ),
-                value: selectedLevel,
-                items: levels.map((level) {
-                  return DropdownMenuItem(value: level, child: Text(level));
-                }).toList(),
-                onChanged: (value) {
-                  setState(() {
-                    selectedLevel = value;
-                    _fetchClassesForSelectedLevelAndYear();
-                  });
-                },
-              ),
-              SizedBox(height: 10),
-              DropdownButtonFormField<String>(
-                decoration: InputDecoration(
-                  labelText: "Année scolaire", 
-                  border: OutlineInputBorder()
-                ),
-                value: selectedYear,
-                items: schoolYears.map((year) {
-                  return DropdownMenuItem(value: year, child: Text(year));
-                }).toList(),
-                onChanged: (value) {
-                  setState(() {
-                    selectedYear = value;
-                    _fetchClassesForSelectedLevelAndYear();
-                  });
-                },
-              ),
-              SizedBox(height: 10),
-              Text("Sélectionner un Classe", style: TextStyle(fontWeight: FontWeight.bold)),
-              availableClasses.isEmpty
-                ? Padding(
-                    padding: const EdgeInsets.all(8.0),
-                    child: Text("⚠️ Aucune classe disponible pour ce niveau et cette année!",
-                        style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold)),
-                  )
-                : Wrap(
-                    spacing: 8.0,
-                    children: availableClasses.map((classe) {
-                      return ChoiceChip(
-                        label: Text("CLASSE ${classe["numeroClasse"]}"),
-                        selected: selectedClass != null && selectedClass!["idClasse"] == classe["idClasse"],
-                        onSelected: (selected) {
-                          setState(() {
-                            selectedClass = selected ? classe : selectedClass;
-                            if (selected && originalClassId != classe["idClasse"]) {
-                              classChanged = true;
-                            }
-                          });
-                        },
-                      );
-                    }).toList(),
+            flexibleSpace: FlexibleSpaceBar(
+              background: Container(
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: [orangeColor.withOpacity(0.8), greenColor.withOpacity(0.8)],
                   ),
-              SizedBox(height: 20),
-              ElevatedButton(
-                onPressed: _updateEleve,
-                child: Text("Enregistrer les modifications", style: TextStyle(color: Colors.white)),
-                style: ElevatedButton.styleFrom(backgroundColor: Colors.deepOrangeAccent),
+                ),
+                child: SafeArea(
+                  child: Padding(
+                    padding: const EdgeInsets.all(20.0),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisAlignment: MainAxisAlignment.end,
+                      children: [
+                        Text(
+                          'Modifier l\'élève',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 28,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        SizedBox(height: 8),
+                        Text(
+                          idController.text.isNotEmpty 
+                              ? "ID: ${idController.text}" 
+                              : "Données de l'élève",
+                          style: TextStyle(
+                            color: Colors.white.withOpacity(0.9),
+                            fontSize: 16,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
               ),
-            ],
+            ),
           ),
-        ),
+          
+          // Loading indicator or Form content
+          isLoading
+              ? SliverFillRemaining(
+                  child: Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        CircularProgressIndicator(
+                          valueColor: AlwaysStoppedAnimation<Color>(orangeColor),
+                        ),
+                        SizedBox(height: 16),
+                        Text(
+                          "Chargement des données...",
+                          style: TextStyle(
+                            fontSize: 16,
+                            color: darkColor,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                )
+              : SliverToBoxAdapter(
+                  child: Padding(
+                    padding: EdgeInsets.all(20.0),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        // Form Section Card
+                        Container(
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(16),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.grey.withOpacity(0.1),
+                                spreadRadius: 1,
+                                blurRadius: 6,
+                                offset: Offset(0, 3),
+                              ),
+                            ],
+                          ),
+                          padding: EdgeInsets.all(20),
+                          margin: EdgeInsets.only(bottom: 20),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Row(
+                                children: [
+                                  Container(
+                                    padding: EdgeInsets.all(8),
+                                    decoration: BoxDecoration(
+                                      color: orangeColor.withOpacity(0.1),
+                                      borderRadius: BorderRadius.circular(8),
+                                    ),
+                                    child: Icon(
+                                      Icons.person,
+                                      color: orangeColor,
+                                      size: 24,
+                                    ),
+                                  ),
+                                  SizedBox(width: 16),
+                                  Text(
+                                    "Informations personnelles",
+                                    style: TextStyle(
+                                      fontSize: 18,
+                                      fontWeight: FontWeight.bold,
+                                      color: darkColor,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              SizedBox(height: 20),
+                              
+                              // Personal Information Fields
+                              _buildInputField(
+                                controller: nameController,
+                                label: "Nom",
+                              ),
+                              _buildInputField(
+                                controller: surnameController,
+                                label: "Prénom",
+                              ),
+                              _buildInputField(
+                                controller: TextEditingController(text: selectedDate),
+                                label: "Date de naissance",
+                                readOnly: true,
+                                suffixIcon: Icon(Icons.calendar_today, color: greenColor),
+                                onTap: () async {
+                                  DateTime? pickedDate = await showDatePicker(
+                                    context: context,
+                                    initialDate: DateTime.now(),
+                                    firstDate: DateTime(2000),
+                                    lastDate: DateTime(2101),
+                                    builder: (context, child) {
+                                      return Theme(
+                                        data: Theme.of(context).copyWith(
+                                          colorScheme: ColorScheme.light(
+                                            primary: greenColor,
+                                            onPrimary: Colors.white,
+                                            onSurface: darkColor,
+                                          ),
+                                        ),
+                                        child: child!,
+                                      );
+                                    },
+                                  );
+                                  if (pickedDate != null) {
+                                    setState(() {
+                                      selectedDate = "${pickedDate.day}/${pickedDate.month}/${pickedDate.year}";
+                                    });
+                                  }
+                                },
+                              ),
+                              _buildInputField(
+                                controller: idController,
+                                label: "ID Élève",
+                                readOnly: true,
+                              ),
+                            ],
+                          ),
+                        ),
+                        
+                        // Academic Information Card
+                        Container(
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(16),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.grey.withOpacity(0.1),
+                                spreadRadius: 1,
+                                blurRadius: 6,
+                                offset: Offset(0, 3),
+                              ),
+                            ],
+                          ),
+                          padding: EdgeInsets.all(20),
+                          margin: EdgeInsets.only(bottom: 20),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Row(
+                                children: [
+                                  Container(
+                                    padding: EdgeInsets.all(8),
+                                    decoration: BoxDecoration(
+                                      color: greenColor.withOpacity(0.1),
+                                      borderRadius: BorderRadius.circular(8),
+                                    ),
+                                    child: Icon(
+                                      Icons.school,
+                                      color: greenColor,
+                                      size: 24,
+                                    ),
+                                  ),
+                                  SizedBox(width: 16),
+                                  Text(
+                                    "Informations académiques",
+                                    style: TextStyle(
+                                      fontSize: 18,
+                                      fontWeight: FontWeight.bold,
+                                      color: darkColor,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              SizedBox(height: 20),
+                              
+                              // Academic Fields
+                              _buildDropdownField<String>(
+                                label: "Niveau d'étude",
+                                value: selectedLevel,
+                                items: levels.map((level) {
+                                  return DropdownMenuItem(value: level, child: Text(level));
+                                }).toList(),
+                                onChanged: (value) {
+                                  setState(() {
+                                    selectedLevel = value;
+                                    _fetchClassesForSelectedLevelAndYear();
+                                  });
+                                },
+                              ),
+                              _buildDropdownField<String>(
+                                label: "Année scolaire",
+                                value: selectedYear,
+                                items: schoolYears.map((year) {
+                                  return DropdownMenuItem(value: year, child: Text(year));
+                                }).toList(),
+                                onChanged: (value) {
+                                  setState(() {
+                                    selectedYear = value;
+                                    _fetchClassesForSelectedLevelAndYear();
+                                  });
+                                },
+                              ),
+                              
+                              // Class Selection
+                              Container(
+                                margin: EdgeInsets.only(bottom: 16.0),
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Padding(
+                                      padding: const EdgeInsets.only(bottom: 10.0),
+                                      child: Text(
+                                        "Sélectionner une classe",
+                                        style: TextStyle(
+                                          fontSize: 16,
+                                          fontWeight: FontWeight.w500,
+                                          color: darkColor,
+                                        ),
+                                      ),
+                                    ),
+                                    availableClasses.isEmpty
+                                      ? Container(
+                                          padding: EdgeInsets.all(16),
+                                          decoration: BoxDecoration(
+                                            color: Colors.red.withOpacity(0.1),
+                                            borderRadius: BorderRadius.circular(12),
+                                          ),
+                                          child: Row(
+                                            children: [
+                                              Icon(Icons.warning_amber_rounded, color: Colors.red),
+                                              SizedBox(width: 10),
+                                              Expanded(
+                                                child: Text(
+                                                  "Aucune classe disponible pour ce niveau et cette année!",
+                                                  style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold),
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        )
+                                      : Wrap(
+                                          spacing: 10.0,
+                                          runSpacing: 10.0,
+                                          children: availableClasses.map((classe) {
+                                            bool isSelected = selectedClass != null && 
+                                                selectedClass!["idClasse"] == classe["idClasse"];
+                                            return InkWell(
+                                              onTap: () {
+                                                setState(() {
+                                                  selectedClass = classe;
+                                                  if (originalClassId != classe["idClasse"]) {
+                                                    classChanged = true;
+                                                  }
+                                                });
+                                              },
+                                              child: Container(
+                                                padding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                                                decoration: BoxDecoration(
+                                                  color: isSelected 
+                                                      ? greenColor 
+                                                      : Colors.grey.withOpacity(0.1),
+                                                  borderRadius: BorderRadius.circular(30),
+                                                ),
+                                                child: Text(
+                                                  "CLASSE ${classe["numeroClasse"]}",
+                                                  style: TextStyle(
+                                                    color: isSelected ? Colors.white : darkColor,
+                                                    fontWeight: FontWeight.bold,
+                                                  ),
+                                                ),
+                                              ),
+                                            );
+                                          }).toList(),
+                                        ),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        
+                        // Save Button
+                        Container(
+                          height: 55,
+                          margin: EdgeInsets.only(bottom: 30),
+                          child: ElevatedButton(
+                            onPressed: _updateEleve,
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: orangeColor,
+                              foregroundColor: Colors.white,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              elevation: 3,
+                            ),
+                            child: Text(
+                              "Enregistrer les modifications",
+                              style: TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+        ],
+      ),
     );
   }
 }

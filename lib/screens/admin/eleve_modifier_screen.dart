@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../utils/constants.dart';
-import 'modifier_eleve_detail_screen.dart'; // Importamos la pantalla de modificación detallada
+import 'modifier_eleve_detail_screen.dart';
 
 class EleveModifierScreen extends StatefulWidget {
   @override
@@ -15,6 +15,12 @@ class _EleveModifierScreenState extends State<EleveModifierScreen> {
   String? searchQuery;
   String? filterNiveau;
   String? filterClasse;
+  
+  // Colors to match the ModifierScreen
+  final Color orangeColor = Color.fromARGB(255, 218, 64, 3);
+  final Color greenColor = Color.fromARGB(255, 1, 110, 5);
+  final Color lightColor = Color.fromARGB(255, 255, 255, 255);
+  final Color darkColor = Color(0xFF333333);
   
   List<String> niveauxEtude = [
     "1ère année", "2ème année", "3ème année",
@@ -35,7 +41,6 @@ class _EleveModifierScreenState extends State<EleveModifierScreen> {
     try {
       Query query = _db.collection('eleves');
       
-      // Aplicar filtros si están seleccionados
       if (filterNiveau != null) {
         query = query.where('niveau', isEqualTo: filterNiveau);
       }
@@ -58,7 +63,6 @@ class _EleveModifierScreenState extends State<EleveModifierScreen> {
         };
       }).toList();
       
-      // Filtrar por búsqueda si hay una consulta
       if (searchQuery != null && searchQuery!.isNotEmpty) {
         fetchedEleves = fetchedEleves.where((eleve) {
           String fullName = '${eleve['nom']} ${eleve['prenom']}'.toLowerCase();
@@ -88,151 +92,328 @@ class _EleveModifierScreenState extends State<EleveModifierScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        backgroundColor: primaryColor,
-        title: Text("Modifier les élèves"),
-        actions: [
-          IconButton(
-            icon: Icon(Icons.refresh),
-            onPressed: _fetchEleves,
-          ),
-        ],
-      ),
-      body: Column(
-        children: [
-          // Barra de búsqueda
-          Padding(
-            padding: const EdgeInsets.all(8.0),
-            child: TextField(
-              decoration: InputDecoration(
-                hintText: "Rechercher par nom ou ID",
-                prefixIcon: Icon(Icons.search),
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(10),
+      backgroundColor: lightColor,
+      body: CustomScrollView(
+        slivers: [
+          // Gradient AppBar like ModifierScreen
+          SliverAppBar(
+            expandedHeight: 150.0,
+            floating: false,
+            pinned: true,
+            flexibleSpace: FlexibleSpaceBar(
+              background: Container(
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: [orangeColor.withOpacity(0.8), greenColor.withOpacity(0.8)],
+                  ),
+                ),
+                child: SafeArea(
+                  child: Padding(
+                    padding: const EdgeInsets.all(20.0),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisAlignment: MainAxisAlignment.end,
+                      children: [
+                        Text(
+                          'Modifier les élèves',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 28,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        SizedBox(height: 8),
+                        Text(
+                          'Gérer la liste des élèves',
+                          style: TextStyle(
+                            color: Colors.white.withOpacity(0.9),
+                            fontSize: 16,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
                 ),
               ),
-              onChanged: (value) {
-                setState(() {
-                  searchQuery = value;
-                });
-                _fetchEleves();
-              },
             ),
+            actions: [
+              IconButton(
+                icon: Icon(Icons.refresh, color: Colors.white),
+                onPressed: _fetchEleves,
+              ),
+            ],
           ),
           
-          // Filtros
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 8.0),
-            child: Row(
-              children: [
-                Expanded(
-                  child: DropdownButtonFormField<String>(
-                    decoration: InputDecoration(
-                      labelText: "Niveau",
-                      contentPadding: EdgeInsets.symmetric(horizontal: 10),
+          // Search and Filter Section
+          SliverToBoxAdapter(
+            child: Container(
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(15),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.grey.withOpacity(0.1),
+                    spreadRadius: 1,
+                    blurRadius: 6,
+                    offset: Offset(0, 3),
+                  ),
+                ],
+              ),
+              margin: EdgeInsets.all(16),
+              padding: EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    "Recherche et filtres",
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                      color: darkColor,
                     ),
-                    value: filterNiveau,
-                    items: [
-                      DropdownMenuItem<String>(
-                        value: null,
-                        child: Text("Tous"),
+                  ),
+                  SizedBox(height: 16),
+                  // Search Bar
+                  Container(
+                    decoration: BoxDecoration(
+                      color: Colors.grey.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: TextField(
+                      decoration: InputDecoration(
+                        hintText: "Rechercher par nom ou ID",
+                        prefixIcon: Icon(Icons.search, color: greenColor),
+                        border: InputBorder.none,
+                        contentPadding: EdgeInsets.symmetric(vertical: 15),
                       ),
-                      ...niveauxEtude.map((niveau) => DropdownMenuItem<String>(
-                        value: niveau,
-                        child: Text(niveau),
-                      )).toList(),
-                    ],
-                    onChanged: (value) {
-                      setState(() {
-                        filterNiveau = value;
-                      });
-                      _fetchEleves();
-                    },
-                  ),
-                ),
-                SizedBox(width: 10),
-                Expanded(
-                  child: TextField(
-                    decoration: InputDecoration(
-                      labelText: "Classe",
-                      contentPadding: EdgeInsets.symmetric(horizontal: 10),
+                      onChanged: (value) {
+                        setState(() {
+                          searchQuery = value;
+                        });
+                        _fetchEleves();
+                      },
                     ),
-                    onChanged: (value) {
-                      setState(() {
-                        filterClasse = value.isEmpty ? null : value;
-                      });
-                      _fetchEleves();
-                    },
                   ),
-                ),
-              ],
+                  SizedBox(height: 16),
+                  // Filters
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Container(
+                          decoration: BoxDecoration(
+                            color: Colors.grey.withOpacity(0.1),
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          padding: EdgeInsets.symmetric(horizontal: 10),
+                          child: DropdownButtonHideUnderline(
+                            child: DropdownButton<String>(
+                              isExpanded: true,
+                              hint: Text("Niveau"),
+                              value: filterNiveau,
+                              items: [
+                                DropdownMenuItem<String>(
+                                  value: null,
+                                  child: Text("Tous"),
+                                ),
+                                ...niveauxEtude.map((niveau) => DropdownMenuItem<String>(
+                                  value: niveau,
+                                  child: Text(niveau),
+                                )).toList(),
+                              ],
+                              onChanged: (value) {
+                                setState(() {
+                                  filterNiveau = value;
+                                });
+                                _fetchEleves();
+                              },
+                            ),
+                          ),
+                        ),
+                      ),
+                      SizedBox(width: 10),
+                      Expanded(
+                        child: Container(
+                          decoration: BoxDecoration(
+                            color: Colors.grey.withOpacity(0.1),
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          padding: EdgeInsets.symmetric(horizontal: 10),
+                          child: TextField(
+                            decoration: InputDecoration(
+                              hintText: "Classe",
+                              border: InputBorder.none,
+                              contentPadding: EdgeInsets.symmetric(vertical: 15),
+                            ),
+                            onChanged: (value) {
+                              setState(() {
+                                filterClasse = value.isEmpty ? null : value;
+                              });
+                              _fetchEleves();
+                            },
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
             ),
           ),
           
-          SizedBox(height: 10),
-          
-          // Lista de alumnos
-          Expanded(
-            child: isLoading 
-              ? Center(child: CircularProgressIndicator())
-              : eleves.isEmpty 
-                ? Center(
-                    child: Text(
-                      "Aucun élève trouvé",
-                      style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+          // Students List
+          SliverPadding(
+            padding: EdgeInsets.symmetric(horizontal: 16),
+            sliver: isLoading
+              ? SliverFillRemaining(
+                  child: Center(
+                    child: CircularProgressIndicator(
+                      valueColor: AlwaysStoppedAnimation<Color>(orangeColor),
+                    ),
+                  ),
+                )
+              : eleves.isEmpty
+                ? SliverFillRemaining(
+                    child: Center(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(
+                            Icons.person_off,
+                            size: 60,
+                            color: Colors.grey,
+                          ),
+                          SizedBox(height: 16),
+                          Text(
+                            "Aucun élève trouvé",
+                            style: TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
+                              color: darkColor,
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
                   )
-                : ListView.builder(
-                    itemCount: eleves.length,
-                    itemBuilder: (context, index) {
-                      final eleve = eleves[index];
-                      return Card(
-                        margin: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                        child: ListTile(
-                          leading: CircleAvatar(
-                            backgroundColor: primaryColor,
-                            child: Icon(Icons.person, color: Colors.white),
-                          ),
-                          title: Text(
-                            "${eleve['nom']} ${eleve['prenom']}",
-                            style: TextStyle(fontWeight: FontWeight.bold),
-                          ),
-                          subtitle: Text(
-                            "ID: ${eleve['idEleve']} | ${eleve['niveau']} | Classe: ${eleve['numeroClasse']}",
-                          ),
-                          trailing: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              IconButton(
-                                icon: Icon(Icons.edit, color: Colors.blue),
-                                onPressed: () async {
-                                  final result = await Navigator.push(
-                                    context,
-                                    MaterialPageRoute(
-                                      builder: (context) => ModifierEleveScreen(eleveId: eleve['idEleve']),
-                                    ),
-                                  );
-                                  
-                                  // Si se modificó con éxito, actualizamos la lista
-                                  if (result == true) {
-                                    _fetchEleves();
-                                  }
-                                },
-                              ),
-                              IconButton(
-                                icon: Icon(Icons.delete, color: Colors.red),
-                                onPressed: () {
-                                  _showDeleteConfirmation(eleve);
-                                },
+                : SliverList(
+                    delegate: SliverChildBuilderDelegate(
+                      (context, index) {
+                        final eleve = eleves[index];
+                        return Container(
+                          margin: EdgeInsets.only(bottom: 12),
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(15),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.grey.withOpacity(0.1),
+                                spreadRadius: 1,
+                                blurRadius: 6,
+                                offset: Offset(0, 3),
                               ),
                             ],
                           ),
-                        ),
-                      );
-                    },
+                          child: ListTile(
+                            contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                            leading: Container(
+                              width: 50,
+                              height: 50,
+                              decoration: BoxDecoration(
+                                gradient: LinearGradient(
+                                  begin: Alignment.topLeft,
+                                  end: Alignment.bottomRight,
+                                  colors: [
+                                    index % 2 == 0 
+                                        ? orangeColor.withOpacity(0.2) 
+                                        : greenColor.withOpacity(0.2),
+                                    index % 2 == 0 
+                                        ? orangeColor.withOpacity(0.4) 
+                                        : greenColor.withOpacity(0.4),
+                                  ],
+                                ),
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              child: Icon(
+                                Icons.person,
+                                size: 30,
+                                color: index % 2 == 0 ? orangeColor : greenColor,
+                              ),
+                            ),
+                            title: Text(
+                              "${eleve['nom']} ${eleve['prenom']}",
+                              style: TextStyle(
+                                fontWeight: FontWeight.bold,
+                                fontSize: 16,
+                                color: darkColor,
+                              ),
+                            ),
+                            subtitle: Text(
+                              "ID: ${eleve['idEleve']} | ${eleve['niveau']} | Classe: ${eleve['numeroClasse']}",
+                              style: TextStyle(
+                                color: Colors.grey[600],
+                              ),
+                            ),
+                            trailing: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Container(
+                                  decoration: BoxDecoration(
+                                    color: Colors.blue.withOpacity(0.1),
+                                    borderRadius: BorderRadius.circular(8),
+                                  ),
+                                  child: IconButton(
+                                    icon: Icon(Icons.edit, color: Colors.blue),
+                                    onPressed: () async {
+                                      final result = await Navigator.push(
+                                        context,
+                                        MaterialPageRoute(
+                                          builder: (context) => ModifierEleveScreen(eleveId: eleve['idEleve']),
+                                        ),
+                                      );
+                                      
+                                      if (result == true) {
+                                        _fetchEleves();
+                                      }
+                                    },
+                                  ),
+                                ),
+                                SizedBox(width: 8),
+                                Container(
+                                  decoration: BoxDecoration(
+                                    color: Colors.red.withOpacity(0.1),
+                                    borderRadius: BorderRadius.circular(8),
+                                  ),
+                                  child: IconButton(
+                                    icon: Icon(Icons.delete, color: Colors.red),
+                                    onPressed: () {
+                                      _showDeleteConfirmation(eleve);
+                                    },
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        );
+                      },
+                      childCount: eleves.length,
+                    ),
                   ),
           ),
+          
+          // Bottom padding
+          SliverPadding(padding: EdgeInsets.only(bottom: 20)),
         ],
+      ),
+      // Floating Action Button
+      floatingActionButton: FloatingActionButton(
+        backgroundColor: greenColor,
+        child: Icon(Icons.add),
+        onPressed: () {
+          // Navigate to add new student screen
+          print("Add new student");
+        },
       ),
     );
   }
@@ -241,15 +422,57 @@ class _EleveModifierScreenState extends State<EleveModifierScreen> {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: Text("Confirmation"),
-        content: Text("Voulez-vous vraiment supprimer l'élève ${eleve['nom']} ${eleve['prenom']}?"),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(15),
+        ),
+        title: Text(
+          "Confirmation",
+          style: TextStyle(
+            color: darkColor,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              padding: EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: Colors.red.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Icon(
+                Icons.warning_amber_rounded,
+                color: Colors.red,
+                size: 50,
+              ),
+            ),
+            SizedBox(height: 16),
+            Text(
+              "Voulez-vous vraiment supprimer l'élève ${eleve['nom']} ${eleve['prenom']}?",
+              style: TextStyle(fontSize: 16),
+            ),
+          ],
+        ),
         actions: [
           TextButton(
-            child: Text("Annuler"),
+            child: Text(
+              "Annuler",
+              style: TextStyle(color: Colors.grey[600]),
+            ),
             onPressed: () => Navigator.pop(context),
           ),
-          TextButton(
-            child: Text("Supprimer", style: TextStyle(color: Colors.red)),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.red,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(8),
+              ),
+            ),
+            child: Text(
+              "Supprimer",
+              style: TextStyle(color: Colors.white),
+            ),
             onPressed: () async {
               Navigator.pop(context);
               await _deleteEleve(eleve);
@@ -261,65 +484,82 @@ class _EleveModifierScreenState extends State<EleveModifierScreen> {
   }
   
   Future<void> _deleteEleve(Map<String, dynamic> eleve) async {
-    try {
-      // 1. Eliminar de la colección de estudiantes
-      await _db.collection('eleves').doc(eleve['idEleve']).delete();
-      
-      // 2. Eliminar de la clase si existe
-      if (eleve['classeId'] != null) {
-        await _db.collection('classes').doc(eleve['classeId']).update({
-          "eleves.${eleve['idEleve']}": FieldValue.delete()
-        });
-      }
-      
-      // 3. Buscar y eliminar referencias en otras colecciones
-      WriteBatch batch = _db.batch();
-      
-      // Eliminar de remarques
-      QuerySnapshot remarquesSnapshot = await _db
-          .collection('remarques')
-          .where("eleve", isEqualTo: eleve['idEleve'])
-          .get();
-          
-      for (var doc in remarquesSnapshot.docs) {
-        batch.delete(doc.reference);
-      }
-      
-      // Eliminar de attendance
-      QuerySnapshot attendanceSnapshot = await _db
-          .collection('attendance')
-          .where("eleveId", isEqualTo: eleve['idEleve'])
-          .get();
-          
-      for (var doc in attendanceSnapshot.docs) {
-        batch.delete(doc.reference);
-      }
-      
-      // Eliminar de results
-      QuerySnapshot resultsSnapshot = await _db
-          .collection('results')
-          .where("eleveId", isEqualTo: eleve['idEleve'])
-          .get();
-          
-      for (var doc in resultsSnapshot.docs) {
-        batch.delete(doc.reference);
-      }
-      
-      await batch.commit();
-      
-      // Actualizar la lista
-      _fetchEleves();
-      
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: Text("✅ Élève supprimé avec succès!"),
-        backgroundColor: Colors.green,
-      ));
-    } catch (e) {
-      print("❌ Error deleting eleve: $e");
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: Text("❌ Erreur lors de la suppression de l'élève!"),
-        backgroundColor: Colors.red,
-      ));
+  try {
+    // 1. Get the student document
+    DocumentSnapshot eleveDoc = await _db.collection('eleves').doc(eleve['idEleve']).get();
+    
+    if (!eleveDoc.exists) {
+      throw Exception("Student document not found");
     }
+    
+    // 2. Create archive document with all student data and timestamp
+    Map<String, dynamic> archiveData = {
+      ...eleveDoc.data() as Map<String, dynamic>,
+      'archivedAt': FieldValue.serverTimestamp(),
+      'originalId': eleve['idEleve'],
+    };
+    
+    // 3. Add to archive collection
+    await _db.collection('ARCHIVE_ELEVES').add(archiveData);
+    
+    // 4. Delete from original collection
+    await _db.collection('eleves').doc(eleve['idEleve']).delete();
+    
+    // 5. Remove from class if exists
+    if (eleve['classeId'] != null) {
+      await _db.collection('classes').doc(eleve['classeId']).update({
+        "eleves.${eleve['idEleve']}": FieldValue.delete()
+      });
+    }
+    
+    // 6. Batch delete references in other collections
+    WriteBatch batch = _db.batch();
+    
+    // Delete from remarques
+    QuerySnapshot remarquesSnapshot = await _db
+        .collection('remarques')
+        .where("eleve", isEqualTo: eleve['idEleve'])
+        .get();
+        
+    for (var doc in remarquesSnapshot.docs) {
+      batch.delete(doc.reference);
+    }
+    
+    // Delete from attendance
+    QuerySnapshot attendanceSnapshot = await _db
+        .collection('attendance')
+        .where("eleveId", isEqualTo: eleve['idEleve'])
+        .get();
+        
+    for (var doc in attendanceSnapshot.docs) {
+      batch.delete(doc.reference);
+    }
+    
+    // Delete from results
+    QuerySnapshot resultsSnapshot = await _db
+        .collection('results')
+        .where("eleveId", isEqualTo: eleve['idEleve'])
+        .get();
+        
+    for (var doc in resultsSnapshot.docs) {
+      batch.delete(doc.reference);
+    }
+    
+    await batch.commit();
+    
+    // Refresh the list
+    _fetchEleves();
+    
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+      content: Text("✅ Élève archivé et supprimé avec succès!"),
+      backgroundColor: greenColor,
+    ));
+  } catch (e) {
+    print("❌ Error deleting/archiving eleve: $e");
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+      content: Text("❌ Erreur lors de l'archivage/suppression de l'élève!"),
+      backgroundColor: Colors.red,
+    ));
   }
+}
 }

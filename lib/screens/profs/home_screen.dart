@@ -115,9 +115,9 @@ class _EnseignantHomeScreenState extends State<EnseignantHomeScreen> {
     },
     {"title": "Saisie des notes", "icon": Icons.edit, "route": NotesScreen()},
     {"title": "Devoirs", "icon": Icons.assignment, "route": HomeworkScreen()},
-    {"title": "Remarques", "icon": Icons.comment, "route": RemarquesScreen()},
+    {"title": "Convocation", "icon": Icons.comment, "route": RemarquesScreen()},
     {
-      "title": "Convocations",
+      "title": "Remarques",
       "icon": Icons.mail,
       "route": ConvocationsScreen()
     },

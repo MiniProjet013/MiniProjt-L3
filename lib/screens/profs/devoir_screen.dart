@@ -17,6 +17,12 @@ class _HomeworkScreenState extends State<HomeworkScreen> {
   String? _selectedHomeworkId;
   List<QueryDocumentSnapshot> _homeworks = [];
 
+  // Couleurs pour correspondre au style AjouterProfScreen
+  final Color orangeColor = Color.fromARGB(255, 218, 64, 3);
+  final Color greenColor = Color.fromARGB(255, 1, 110, 5);
+  final Color lightColor = Color.fromARGB(255, 255, 255, 255);
+  final Color darkColor = Color(0xFF333333);
+
   @override
   void initState() {
     super.initState();
@@ -51,9 +57,9 @@ class _HomeworkScreenState extends State<HomeworkScreen> {
   Future<void> _addHomework() async {
     if (_subjectController.text.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Veuillez écrire un sujet'),
-          backgroundColor: Color(0xFF4CAF50),
+        SnackBar(
+          content: Text('⚠️ Veuillez écrire un sujet'),
+          backgroundColor: Colors.red,
         ),
       );
       return;
@@ -71,9 +77,9 @@ class _HomeworkScreenState extends State<HomeworkScreen> {
       });
 
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Devoir ajouté avec succès!'),
-          backgroundColor: Color(0xFF4CAF50),
+        SnackBar(
+          content: Text('✅ Devoir ajouté avec succès!'),
+          backgroundColor: greenColor,
         ),
       );
       _subjectController.clear();
@@ -81,7 +87,7 @@ class _HomeworkScreenState extends State<HomeworkScreen> {
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Erreur: ${e.toString()}'),
+          content: Text('❌ Erreur: ${e.toString()}'),
           backgroundColor: Colors.red,
         ),
       );
@@ -100,8 +106,8 @@ class _HomeworkScreenState extends State<HomeworkScreen> {
 
     if (_homeworks.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Aucun devoir trouvé pour ajouter une correction'),
+        SnackBar(
+          content: Text('⚠️ Aucun devoir trouvé pour ajouter une correction'),
           backgroundColor: Colors.orange,
         ),
       );
@@ -112,7 +118,23 @@ class _HomeworkScreenState extends State<HomeworkScreen> {
     await showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Choisir un devoir'),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
+        ),
+        title: Row(
+          children: [
+            Container(
+              padding: EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: greenColor.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Icon(Icons.assignment, color: greenColor),
+            ),
+            SizedBox(width: 12),
+            Text('Choisir un devoir'),
+          ],
+        ),
         content: SizedBox(
           width: double.maxFinite,
           child: ListView.builder(
@@ -120,19 +142,49 @@ class _HomeworkScreenState extends State<HomeworkScreen> {
             itemCount: _homeworks.length,
             itemBuilder: (context, index) {
               final homework = _homeworks[index];
-              return ListTile(
-                title: Text(homework['subject']),
-                onTap: () {
-                  setState(() {
-                    _selectedHomeworkId = homework.id;
-                    _subjectController.text = homework['subject'];
-                  });
-                  Navigator.pop(context);
-                },
+              return Container(
+                margin: EdgeInsets.only(bottom: 8),
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(
+                    color: darkColor.withOpacity(0.1),
+                  ),
+                ),
+                child: ListTile(
+                  title: Text(
+                    homework['subject'],
+                    style: TextStyle(
+                      fontWeight: FontWeight.w500,
+                      color: darkColor,
+                    ),
+                  ),
+                  leading: Icon(Icons.description, color: orangeColor),
+                  onTap: () {
+                    setState(() {
+                      _selectedHomeworkId = homework.id;
+                      _subjectController.text = homework['subject'];
+                    });
+                    Navigator.pop(context);
+                  },
+                ),
               );
             },
           ),
         ),
+        actions: [
+          TextButton(
+            onPressed: () {
+              Navigator.pop(context);
+              setState(() {
+                _isCorrectionMode = false;
+              });
+            },
+            child: Text(
+              'Annuler',
+              style: TextStyle(color: Colors.grey),
+            ),
+          ),
+        ],
       ),
     );
 
@@ -147,8 +199,8 @@ class _HomeworkScreenState extends State<HomeworkScreen> {
   Future<void> _submitCorrection() async {
     if (_correctionController.text.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Veuillez écrire une correction'),
+        SnackBar(
+          content: Text('⚠️ Veuillez écrire une correction'),
           backgroundColor: Colors.orange,
         ),
       );
@@ -167,9 +219,9 @@ class _HomeworkScreenState extends State<HomeworkScreen> {
       });
 
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Correction ajoutée avec succès!'),
-          backgroundColor: Color(0xFF4CAF50),
+        SnackBar(
+          content: Text('✅ Correction ajoutée avec succès!'),
+          backgroundColor: greenColor,
         ),
       );
       
@@ -184,7 +236,7 @@ class _HomeworkScreenState extends State<HomeworkScreen> {
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Erreur: ${e.toString()}'),
+          content: Text('❌ Erreur: ${e.toString()}'),
           backgroundColor: Colors.red,
         ),
       );
@@ -205,155 +257,460 @@ class _HomeworkScreenState extends State<HomeworkScreen> {
     });
   }
 
+  // Widget de champ de saisie personnalisé avec cadre
+  Widget _buildInputField({
+    required TextEditingController controller,
+    required String label,
+    bool readOnly = false,
+    int maxLines = 1,
+    Icon? suffixIcon,
+  }) {
+    return Container(
+      margin: EdgeInsets.only(bottom: 16.0),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: darkColor.withOpacity(0.2),
+          width: 1.0,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.grey.withOpacity(0.1),
+            spreadRadius: 1,
+            blurRadius: 4,
+            offset: Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Padding(
+        padding: EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              label,
+              style: TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.w500,
+                color: darkColor.withOpacity(0.7),
+              ),
+            ),
+            TextField(
+              controller: controller,
+              readOnly: readOnly,
+              maxLines: maxLines,
+              style: TextStyle(
+                fontSize: 16,
+                color: darkColor,
+                fontWeight: FontWeight.w500,
+              ),
+              decoration: InputDecoration(
+                border: InputBorder.none,
+                suffixIcon: suffixIcon,
+                contentPadding: EdgeInsets.zero,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Row(
-          children: [
-            Icon(Icons.assignment, color: Colors.white),
-            SizedBox(width: 8),
-            Text('DEVOIRS'),
-          ],
-        ),
-        backgroundColor: const Color(0xFF4CAF50),
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back),
-          onPressed: () {
-            Navigator.pop(context);
-          },
-        ),
-      ),
-      body: Padding(
-        padding: const EdgeInsets.all(24.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            // Subject Label
-            Text(
-              _isCorrectionMode ? 'SUJET (lecture seule)' : 'SUJET',
-              style: const TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.bold,
-              ),
+      backgroundColor: lightColor,
+      body: CustomScrollView(
+        slivers: [
+          // AppBar avec gradient
+          SliverAppBar(
+            expandedHeight: 150.0,
+            floating: false,
+            pinned: true,
+            leading: IconButton(
+              icon: Icon(Icons.arrow_back, color: Colors.white),
+              onPressed: () => Navigator.pop(context),
             ),
-            const SizedBox(height: 8),
-
-            // Subject Text Field (Larger)
-            TextField(
-              controller: _subjectController,
-              readOnly: _isCorrectionMode, // Read-only in correction mode
-              maxLines: 3, // Make it larger
-              decoration: InputDecoration(
-                hintText: 'Écrire le sujet...',
-                border: const OutlineInputBorder(),
-                filled: _isCorrectionMode,
-                fillColor: _isCorrectionMode ? Colors.grey[200] : null,
-              ),
-            ),
-            const SizedBox(height: 16),
-
-            // Correction Field (shown only in correction mode)
-            if (_isCorrectionMode) ...[
-              const Text(
-                'CORRECTION',
-                style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold,
+            flexibleSpace: FlexibleSpaceBar(
+              background: Container(
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: [orangeColor.withOpacity(0.8), greenColor.withOpacity(0.8)],
+                  ),
                 ),
-              ),
-              const SizedBox(height: 8),
-              TextField(
-                controller: _correctionController,
-                maxLines: 5,
-                decoration: const InputDecoration(
-                  hintText: 'Écrire la correction...',
-                  border: OutlineInputBorder(),
-                ),
-              ),
-              const SizedBox(height: 16),
-              
-              // Submit and Cancel buttons for correction mode
-              Row(
-                children: [
-                  Expanded(
-                    child: ElevatedButton(
-                      onPressed: _isLoading ? null : _submitCorrection,
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFF4CAF50),
-                        foregroundColor: Colors.white,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(30),
+                child: SafeArea(
+                  child: Padding(
+                    padding: const EdgeInsets.all(20.0),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisAlignment: MainAxisAlignment.end,
+                      children: [
+                        Text(
+                          'Devoirs',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 28,
+                            fontWeight: FontWeight.bold,
+                          ),
                         ),
-                        padding: const EdgeInsets.symmetric(vertical: 16),
-                      ),
-                      child: _isLoading
-                          ? const CircularProgressIndicator(color: Colors.white)
-                          : const Text('ENREGISTRER LA CORRECTION'),
+                        SizedBox(height: 8),
+                        Text(
+                          _isCorrectionMode ? "Ajouter une correction" : "Ajouter un devoir",
+                          style: TextStyle(
+                            color: Colors.white.withOpacity(0.9),
+                            fontSize: 16,
+                          ),
+                        ),
+                      ],
                     ),
                   ),
-                  const SizedBox(width: 8),
-                  ElevatedButton(
-                    onPressed: _cancelCorrection,
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.grey,
-                      foregroundColor: Colors.white,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(30),
-                      ),
-                      padding: const EdgeInsets.symmetric(vertical: 16),
+                ),
+              ),
+            ),
+          ),
+          
+          // Contenu principal
+          SliverToBoxAdapter(
+            child: Padding(
+              padding: EdgeInsets.all(20.0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  // Section principale
+                  Container(
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(16),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.grey.withOpacity(0.1),
+                          spreadRadius: 1,
+                          blurRadius: 6,
+                          offset: Offset(0, 3),
+                        ),
+                      ],
                     ),
-                    child: const Text('ANNULER'),
+                    padding: EdgeInsets.all(20),
+                    margin: EdgeInsets.only(bottom: 20),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Container(
+                              padding: EdgeInsets.all(8),
+                              decoration: BoxDecoration(
+                                color: orangeColor.withOpacity(0.1),
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: Icon(
+                                Icons.assignment,
+                                color: orangeColor,
+                                size: 24,
+                              ),
+                            ),
+                            SizedBox(width: 16),
+                            Text(
+                              _isCorrectionMode ? "Ajouter une correction" : "Ajouter un devoir",
+                              style: TextStyle(
+                                fontSize: 18,
+                                fontWeight: FontWeight.bold,
+                                color: darkColor,
+                              ),
+                            ),
+                          ],
+                        ),
+                        SizedBox(height: 20),
+                        
+                        // Champ de saisie pour le sujet
+                        _buildInputField(
+                          controller: _subjectController,
+                          label: "Sujet du devoir",
+                          readOnly: _isCorrectionMode,
+                          maxLines: 3,
+                          suffixIcon: Icon(Icons.subject, color: greenColor),
+                        ),
+                        
+                        // Champ de correction (si en mode correction)
+                        if (_isCorrectionMode)
+                          _buildInputField(
+                            controller: _correctionController,
+                            label: "Correction",
+                            maxLines: 5,
+                            suffixIcon: Icon(Icons.edit_note, color: greenColor),
+                          ),
+                        
+                        SizedBox(height: 20),
+                        
+                        // Boutons d'action
+                        if (_isCorrectionMode) ...[
+                          // Boutons en mode correction
+                          Row(
+                            children: [
+                              Expanded(
+                                child: Container(
+                                  height: 55,
+                                  child: ElevatedButton(
+                                    onPressed: _isLoading ? null : _submitCorrection,
+                                    style: ElevatedButton.styleFrom(
+                                      backgroundColor: greenColor,
+                                      foregroundColor: Colors.white,
+                                      shape: RoundedRectangleBorder(
+                                        borderRadius: BorderRadius.circular(12),
+                                      ),
+                                      elevation: 3,
+                                    ),
+                                    child: _isLoading
+                                        ? CircularProgressIndicator(color: Colors.white)
+                                        : Text(
+                                            "Enregistrer la correction",
+                                            style: TextStyle(
+                                              fontSize: 16,
+                                              fontWeight: FontWeight.bold,
+                                            ),
+                                          ),
+                                  ),
+                                ),
+                              ),
+                              SizedBox(width: 10),
+                              Container(
+                                height: 55,
+                                child: ElevatedButton(
+                                  onPressed: _cancelCorrection,
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: Colors.grey.shade500,
+                                    foregroundColor: Colors.white,
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(12),
+                                    ),
+                                    elevation: 3,
+                                  ),
+                                  child: Text(
+                                    "Annuler",
+                                    style: TextStyle(
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ] else ...[
+                          // Bouton pour ajouter un devoir
+                          Container(
+                            height: 55,
+                            margin: EdgeInsets.only(bottom: 20),
+                            child: ElevatedButton(
+                              onPressed: _isLoading ? null : _addHomework,
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: orangeColor,
+                                foregroundColor: Colors.white,
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                elevation: 3,
+                              ),
+                              child: _isLoading
+                                  ? CircularProgressIndicator(color: Colors.white)
+                                  : Text(
+                                      "Ajouter le devoir",
+                                      style: TextStyle(
+                                        fontSize: 16,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                            ),
+                          ),
+                          
+                          // Séparateur
+                          Container(
+                            margin: EdgeInsets.symmetric(vertical: 16),
+                            child: Row(
+                              children: [
+                                Expanded(
+                                  child: Divider(color: darkColor.withOpacity(0.2)),
+                                ),
+                                Padding(
+                                  padding: EdgeInsets.symmetric(horizontal: 16),
+                                  child: Text(
+                                    "OU",
+                                    style: TextStyle(
+                                      color: darkColor.withOpacity(0.6),
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                ),
+                                Expanded(
+                                  child: Divider(color: darkColor.withOpacity(0.2)),
+                                ),
+                              ],
+                            ),
+                          ),
+                          
+                          // Bouton pour ajouter une correction
+                          Container(
+                            height: 55,
+                            child: ElevatedButton(
+                              onPressed: _addCorrection,
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: greenColor,
+                                foregroundColor: Colors.white,
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                elevation: 3,
+                              ),
+                              child: Text(
+                                "Ajouter une correction",
+                                style: TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ],
+                    ),
+                  ),
+                  
+                  // Section des devoirs récents
+                  Container(
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(16),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.grey.withOpacity(0.1),
+                          spreadRadius: 1,
+                          blurRadius: 6,
+                          offset: Offset(0, 3),
+                        ),
+                      ],
+                    ),
+                    padding: EdgeInsets.all(20),
+                    margin: EdgeInsets.only(bottom: 20),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Container(
+                              padding: EdgeInsets.all(8),
+                              decoration: BoxDecoration(
+                                color: greenColor.withOpacity(0.1),
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: Icon(
+                                Icons.history,
+                                color: greenColor,
+                                size: 24,
+                              ),
+                            ),
+                            SizedBox(width: 16),
+                            Text(
+                              "Devoirs récents",
+                              style: TextStyle(
+                                fontSize: 18,
+                                fontWeight: FontWeight.bold,
+                                color: darkColor,
+                              ),
+                            ),
+                          ],
+                        ),
+                        SizedBox(height: 20),
+                        
+                        // Liste des devoirs récents
+                        _homeworks.isEmpty
+                            ? Center(
+                                child: Padding(
+                                  padding: const EdgeInsets.all(16.0),
+                                  child: Text(
+                                    "Aucun devoir disponible",
+                                    style: TextStyle(
+                                      color: darkColor.withOpacity(0.6),
+                                      fontStyle: FontStyle.italic,
+                                    ),
+                                  ),
+                                ),
+                              )
+                            : ListView.builder(
+                                shrinkWrap: true,
+                                physics: NeverScrollableScrollPhysics(),
+                                itemCount: _homeworks.length > 5 ? 5 : _homeworks.length,
+                                itemBuilder: (context, index) {
+                                  final homework = _homeworks[index];
+                                  final hasCorrection = homework.data().toString().contains('correction');
+                                  
+                                  return Container(
+                                    margin: EdgeInsets.only(bottom: 8),
+                                    decoration: BoxDecoration(
+                                      borderRadius: BorderRadius.circular(12),
+                                      border: Border.all(
+                                        color: darkColor.withOpacity(0.1),
+                                      ),
+                                    ),
+                                    child: ListTile(
+                                      title: Text(
+                                        homework['subject'],
+                                        style: TextStyle(
+                                          fontWeight: FontWeight.w500,
+                                          color: darkColor,
+                                        ),
+                                      ),
+                                      subtitle: hasCorrection
+                                          ? Text(
+                                              "Correction disponible",
+                                              style: TextStyle(
+                                                color: greenColor,
+                                                fontWeight: FontWeight.w500,
+                                              ),
+                                            )
+                                          : Text(
+                                              "Pas encore corrigé",
+                                              style: TextStyle(
+                                                color: orangeColor,
+                                                fontStyle: FontStyle.italic,
+                                              ),
+                                            ),
+                                      leading: Container(
+                                        padding: EdgeInsets.all(8),
+                                        decoration: BoxDecoration(
+                                          color: hasCorrection
+                                              ? greenColor.withOpacity(0.1)
+                                              : orangeColor.withOpacity(0.1),
+                                          borderRadius: BorderRadius.circular(8),
+                                        ),
+                                        child: Icon(
+                                          hasCorrection ? Icons.check_circle : Icons.pending,
+                                          color: hasCorrection ? greenColor : orangeColor,
+                                        ),
+                                      ),
+                                      trailing: Icon(
+                                        Icons.arrow_forward_ios,
+                                        size: 16,
+                                        color: darkColor.withOpacity(0.3),
+                                      ),
+                                      onTap: () {
+                                        // Action pour voir les détails du devoir
+                                        // Pourrait être implémenté dans une future mise à jour
+                                      },
+                                    ),
+                                  );
+                                },
+                              ),
+                      ],
+                    ),
                   ),
                 ],
               ),
-            ] else ...[
-              // Add Homework Button (shown only in normal mode)
-              ElevatedButton(
-                onPressed: _isLoading ? null : _addHomework,
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFFE67E22),
-                  foregroundColor: Colors.white,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(30),
-                  ),
-                  padding: const EdgeInsets.symmetric(vertical: 16),
-                ),
-                child: _isLoading
-                    ? const CircularProgressIndicator(color: Colors.white)
-                    : const Text('AJOUTER LE DEVOIR'),
-              ),
-
-              // OR Divider
-              const Padding(
-                padding: EdgeInsets.symmetric(vertical: 16.0),
-                child: Center(
-                  child: Text(
-                    'OU',
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                ),
-              ),
-
-              // Add Correction Button
-              ElevatedButton(
-                onPressed: _addCorrection,
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFFE67E22),
-                  foregroundColor: Colors.white,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(30),
-                  ),
-                  padding: const EdgeInsets.symmetric(vertical: 16),
-                ),
-                child: const Text('METTRE LA CORRECTION'),
-              ),
-            ],
-          ],
-        ),
+            ),
+          ),
+        ],
       ),
     );
   }
