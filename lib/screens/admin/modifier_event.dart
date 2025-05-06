@@ -593,21 +593,41 @@ class _ModifierEvenementsScreenState extends State<ModifierEvenementsScreen> {
   }
   
   Future<void> _deleteEvenement(Map<String, dynamic> evenement) async {
-    try {
-      await _db.collection('evenements').doc(evenement["id"]).delete();
-      
-      _loadEvenements();
-      
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: Text("✅ Événement supprimé avec succès!"),
-        backgroundColor: greenColor,
-      ));
-    } catch (e) {
-      print("❌ Error deleting event: $e");
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: Text("❌ Erreur lors de la suppression de l'événement!"),
-        backgroundColor: Colors.red,
-      ));
+  try {
+    // 1. Get the event document
+    DocumentSnapshot eventDoc = await _db.collection('evenements').doc(evenement["id"]).get();
+    
+    if (!eventDoc.exists) {
+      throw Exception("Event document not found");
     }
+    
+    // 2. Create archive document with all event data and timestamp
+    Map<String, dynamic> archiveData = {
+      ...eventDoc.data() as Map<String, dynamic>,
+      'archivedAt': FieldValue.serverTimestamp(),
+      'originalId': evenement["id"],
+      //'deletedBy': _db.doc('users/${_db.app.auth().currentUser?.uid}'), // Optional: track who deleted
+    };
+    
+    // 3. Add to archive collection
+    await _db.collection('ARCHIVE_EVENEMENTS').add(archiveData);
+    
+    // 4. Delete from original collection
+    await _db.collection('evenements').doc(evenement["id"]).delete();
+    
+    // 5. Refresh the list
+    _loadEvenements();
+    
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+      content: Text("✅ Événement archivé et supprimé avec succès!"),
+      backgroundColor: greenColor,
+    ));
+  } catch (e) {
+    print("❌ Error deleting/archiving event: $e");
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+      content: Text("❌ Erreur lors de l'archivage/suppression de l'événement!"),
+      backgroundColor: Colors.red,
+    ));
   }
+}
 }
