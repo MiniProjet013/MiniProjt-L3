@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'absences_prof_screen.dart';
+//import 'absences_prof_screen.dart';
 import 'absences_eleve_screen.dart';
 import 'convocation_screens.dart';
 
@@ -10,12 +10,7 @@ class DisciplineScolaireScreen extends StatelessWidget {
   final Color darkColor = Color(0xFF333333);
 
   final List<Map<String, dynamic>> options = [
-    {
-      "title": "Absences des professeurs",
-      "icon": Icons.school,
-      "route": AbsencesProfScreen(),
-      "color": Color.fromARGB(255, 218, 64, 3) // Orange
-    },
+   
     {
       "title": "Absences des élèves",
       "icon": Icons.person,

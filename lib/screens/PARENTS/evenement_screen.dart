@@ -2,14 +2,14 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:intl/intl.dart';
 
-class EvenementsProf extends StatefulWidget {
-  const EvenementsProf({Key? key}) : super(key: key);
+class EvenementsPage extends StatefulWidget {
+  const EvenementsPage({super.key});
 
   @override
-  State<EvenementsProf> createState() => _EvenementsProfState();
+  State<EvenementsPage> createState() => _EvenementsPageState();
 }
 
-class _EvenementsProfState extends State<EvenementsProf> {
+class _EvenementsPageState extends State<EvenementsPage> {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   bool _isLoading = true;
   List<Map<String, dynamic>> _evenements = [];
@@ -109,7 +109,7 @@ class _EvenementsProfState extends State<EvenementsProf> {
               gradient: LinearGradient(
                 begin: Alignment.topCenter,
                 end: Alignment.bottomCenter,
-                colors: [Color.fromARGB(255, 1, 110, 5)],
+                colors: [Color(0xFF4285F4), Color(0xFF5B6AF0)],
               ),
             ),
             child: SafeArea(

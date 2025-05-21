@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import '../services/auth_service.dart';
 import 'profs/home_screen.dart';
 import 'admin/admin_home_screen.dart';
@@ -17,31 +18,16 @@ class _CombinedRoleLoginScreenState extends State<CombinedRoleLoginScreen> {
   String? selectedRole;
 
   // Variables pour la section parent
-  Map<String, String> enfants = {};
   List<TextEditingController> parentIdControllers = [TextEditingController()];
-  final Map<String, String> enfantsDatabase = {
-    "123": "Ahmed",
-    "456": "Yasmine",
-    "789": "Omar",
-    "101": "Fatima",
-  };
+  bool parentIsLoading = false;
+  
+  // Référence à la collection Firestore
+  final CollectionReference elevesCollection = 
+    FirebaseFirestore.instance.collection('eleves');
 
   void _login() async {
     if (selectedRole == null) {
       _showError("⚠️ Veuillez sélectionner un rôle d'abord!");
-      return;
-    }
-
-    // Cas spécial pour les parents
-    if (selectedRole == "parent") {
-      if (enfants.isEmpty) {
-        _showError("⚠️ Veuillez entrer au moins un ID enfant valide!");
-        return;
-      }
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(builder: (context) => ParentHomeScreen(enfants: enfants)),
-      );
       return;
     }
 
@@ -67,7 +53,7 @@ class _CombinedRoleLoginScreenState extends State<CombinedRoleLoginScreen> {
         if (selectedRole == "admin") {
           nextScreen = AdminHomeScreen();
         } else if (selectedRole == "prof") {
-          nextScreen = EnseignantHomeScreen ();
+          nextScreen = EnseignantHomeScreen();
         } else {
           _showError("⚠️ Rôle non supporté!");
           return;
@@ -81,23 +67,57 @@ class _CombinedRoleLoginScreenState extends State<CombinedRoleLoginScreen> {
     }
   }
 
-  void _validateEnfantsIds() {
-    Map<String, String> enteredEnfants = {};
+  Future<void> _verifierEnfants() async {
+    // Vérifier s'il y a au moins un ID entré
+    bool hasInput = false;
+    List<String> validIds = [];
+    
     for (var controller in parentIdControllers) {
       String id = controller.text.trim();
-      if (id.isNotEmpty && enfantsDatabase.containsKey(id)) {
-        enteredEnfants[id] = enfantsDatabase[id]!;
+      if (id.isNotEmpty) {
+        hasInput = true;
+        validIds.add(id);
       }
     }
 
-    if (enteredEnfants.isNotEmpty) {
-      setState(() => enfants = enteredEnfants);
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(builder: (context) => ParentHomeScreen(enfants: enteredEnfants)),
-      );
-    } else {
-      _showError("⚠️ Aucun ID valide n'a été entré");
+    if (!hasInput) {
+      _showError("⚠️ Veuillez entrer au moins un ID enfant!");
+      return;
+    }
+
+    setState(() => parentIsLoading = true);
+
+    try {
+      // Vérification des IDs valides dans Firestore
+      Map<String, Map<String, dynamic>> enfantsValides = {};
+      
+      for (String id in validIds) {
+        DocumentSnapshot eleveDoc = await elevesCollection.doc(id).get();
+        
+        if (eleveDoc.exists && eleveDoc.data() != null) {
+          Map<String, dynamic> eleveData = eleveDoc.data() as Map<String, dynamic>;
+          enfantsValides[id] = eleveData;
+        }
+      }
+      
+      setState(() => parentIsLoading = false);
+      
+      if (enfantsValides.isNotEmpty) {
+        // Naviguer vers l'écran ParentHomeScreen avec les enfants déjà vérifiés
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(
+            builder: (context) => ParentHomeScreen(
+              enfantsPreverifies: enfantsValides,
+            ),
+          ),
+        );
+      } else {
+        _showError("⚠️ Aucun ID valide n'a été trouvé dans la base de données!");
+      }
+    } catch (e) {
+      setState(() => parentIsLoading = false);
+      _showError("⚠️ Erreur: ${e.toString()}");
     }
   }
 
@@ -192,6 +212,8 @@ class _CombinedRoleLoginScreenState extends State<CombinedRoleLoginScreen> {
                                 decoration: InputDecoration(
                                   labelText: "ID de l'enfant ${index + 1}",
                                   labelStyle: TextStyle(color: Colors.white70),
+                                  hintText: "Ex: E-3280",
+                                  hintStyle: TextStyle(color: Colors.white38),
                                   enabledBorder: OutlineInputBorder(
                                     borderSide: BorderSide(color: Colors.white54),
                                   ),
@@ -224,24 +246,26 @@ class _CombinedRoleLoginScreenState extends State<CombinedRoleLoginScreen> {
                   ),
                   
                   SizedBox(height: 30),
-                  Container(
-                    height: 55,
-                    decoration: BoxDecoration(
-                      color: Color.fromARGB(213, 230, 122, 0),
-                      borderRadius: BorderRadius.circular(30),
-                    ),
-                    child: TextButton(
-                      onPressed: _validateEnfantsIds,
-                      child: Text(
-                        "VALIDER",
-                        style: TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.white,
+                  parentIsLoading
+                    ? Center(child: CircularProgressIndicator(color: Colors.white))
+                    : Container(
+                      height: 55,
+                      decoration: BoxDecoration(
+                        color: Color.fromARGB(213, 230, 122, 0),
+                        borderRadius: BorderRadius.circular(30),
+                      ),
+                      child: TextButton(
+                        onPressed: _verifierEnfants,
+                        child: Text(
+                          "VALIDER",
+                          style: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.white,
+                          ),
                         ),
                       ),
                     ),
-                  ),
                 ],
 
                 if (selectedRole == "admin" || selectedRole == "prof") ...[
@@ -300,11 +324,8 @@ class _CombinedRoleLoginScreenState extends State<CombinedRoleLoginScreen> {
         setState(() {
           selectedRole = role;
           if (role == "parent") {
-            enfants.clear();
             parentIdControllers = [TextEditingController()];
           } else {
-            enfants.clear();
-            parentIdControllers = [TextEditingController()];
             emailController.clear();
             passwordController.clear();
           }

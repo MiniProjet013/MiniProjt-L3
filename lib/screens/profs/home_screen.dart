@@ -121,7 +121,8 @@ class _EnseignantHomeScreenState extends State<EnseignantHomeScreen> {
       "icon": Icons.mail,
       "route": ConvocationsScreen()
     },
-    {"title": "Événements", "icon": Icons.event, "route": ExamensScreen()},
+    {"title": "Événements", "icon": Icons.event, "route": EvenementsProf ()},
+    
   ];
 
   void _logout() {
