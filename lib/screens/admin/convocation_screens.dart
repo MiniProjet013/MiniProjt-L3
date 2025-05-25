@@ -15,14 +15,35 @@ class _ConvocationScreenState extends State<ConvocationScreen> {
   final Color darkColor = Color(0xFF333333);
   
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  final TextEditingController _searchController = TextEditingController();
+  
   bool isLoading = true;
+  bool isSearchVisible = false;
   List<DocumentSnapshot> convocations = [];
+  List<DocumentSnapshot> filteredConvocations = [];
   String? errorMessage;
+  String selectedFilter = 'Tous'; // Tous, Aujourd'hui, Cette semaine, Ce mois
+  String searchQuery = '';
 
   @override
   void initState() {
     super.initState();
     _fetchConvocations();
+    _searchController.addListener(_onSearchChanged);
+  }
+
+  @override
+  void dispose() {
+    _searchController.removeListener(_onSearchChanged);
+    _searchController.dispose();
+    super.dispose();
+  }
+
+  void _onSearchChanged() {
+    setState(() {
+      searchQuery = _searchController.text;
+      _applyFilters();
+    });
   }
 
   Future<void> _fetchConvocations() async {
@@ -35,7 +56,9 @@ class _ConvocationScreenState extends State<ConvocationScreen> {
       final QuerySnapshot snapshot = await _firestore.collection('remarques').get();
       setState(() {
         convocations = snapshot.docs;
+        filteredConvocations = convocations;
         isLoading = false;
+        _applyFilters();
       });
     } catch (e) {
       setState(() {
@@ -45,9 +68,89 @@ class _ConvocationScreenState extends State<ConvocationScreen> {
     }
   }
 
+  void _applyFilters() {
+    List<DocumentSnapshot> tempList = convocations;
+
+    // Filtrage par recherche textuelle
+    if (searchQuery.isNotEmpty) {
+      tempList = tempList.where((doc) {
+        final data = doc.data() as Map<String, dynamic>;
+        final eleveNom = (data['eleveNom'] ?? '').toString().toLowerCase();
+        final remarque = (data['remarque'] ?? '').toString().toLowerCase();
+        final classeNiveaux = (data['classeNiveaux'] ?? '').toString().toLowerCase();
+        final anneeScolaire = (data['anneeScolaire'] ?? '').toString().toLowerCase();
+        
+        return eleveNom.contains(searchQuery.toLowerCase()) ||
+               remarque.contains(searchQuery.toLowerCase()) ||
+               classeNiveaux.contains(searchQuery.toLowerCase()) ||
+               anneeScolaire.contains(searchQuery.toLowerCase());
+      }).toList();
+    }
+
+    // Filtrage par date
+    if (selectedFilter != 'Tous') {
+      final now = DateTime.now();
+      tempList = tempList.where((doc) {
+        final data = doc.data() as Map<String, dynamic>;
+        final dateString = data['date'] ?? '';
+        final docDate = _parseDate(dateString);
+        
+        if (docDate == null) return false;
+        
+        switch (selectedFilter) {
+          case 'Aujourd\'hui':
+            return docDate.year == now.year &&
+                   docDate.month == now.month &&
+                   docDate.day == now.day;
+          case 'Cette semaine':
+            final weekStart = now.subtract(Duration(days: now.weekday - 1));
+            final weekEnd = weekStart.add(Duration(days: 6));
+            return docDate.isAfter(weekStart.subtract(Duration(days: 1))) &&
+                   docDate.isBefore(weekEnd.add(Duration(days: 1)));
+          case 'Ce mois':
+            return docDate.year == now.year && docDate.month == now.month;
+          default:
+            return true;
+        }
+      }).toList();
+    }
+
+    // Trier par date (plus récent en premier)
+    tempList.sort((a, b) {
+      final dataA = a.data() as Map<String, dynamic>;
+      final dataB = b.data() as Map<String, dynamic>;
+      final dateA = _parseDate(dataA['date'] ?? '');
+      final dateB = _parseDate(dataB['date'] ?? '');
+      
+      if (dateA == null && dateB == null) return 0;
+      if (dateA == null) return 1;
+      if (dateB == null) return -1;
+      
+      return dateB.compareTo(dateA);
+    });
+
+    setState(() {
+      filteredConvocations = tempList;
+    });
+  }
+
+  DateTime? _parseDate(String dateString) {
+    try {
+      final parts = dateString.split('/');
+      if (parts.length != 3) return null;
+      
+      final day = int.parse(parts[0]);
+      final month = int.parse(parts[1]);
+      final year = int.parse(parts[2]);
+      
+      return DateTime(year, month, day);
+    } catch (e) {
+      return null;
+    }
+  }
+
   String _formatDate(String dateString) {
     try {
-      // Format d'entrée "dd/MM/yyyy"
       final parts = dateString.split('/');
       if (parts.length != 3) return dateString;
       
@@ -65,7 +168,7 @@ class _ConvocationScreenState extends State<ConvocationScreen> {
       body: CustomScrollView(
         slivers: [
           SliverAppBar(
-            expandedHeight: 150.0,
+            expandedHeight: isSearchVisible ? 280.0 : 150.0,
             floating: false,
             pinned: true,
             flexibleSpace: FlexibleSpaceBar(
@@ -87,36 +190,174 @@ class _ConvocationScreenState extends State<ConvocationScreen> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       mainAxisAlignment: MainAxisAlignment.end,
                       children: [
-                        Text(
-                          'CONVOCATIONS',
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontSize: 28,
-                            fontWeight: FontWeight.bold,
-                          ),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Expanded(
+                              child: Text(
+                                'CONVOCATIONS',
+                                style: TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 28,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ),
+                            IconButton(
+                              onPressed: () {
+                                setState(() {
+                                  isSearchVisible = !isSearchVisible;
+                                  if (!isSearchVisible) {
+                                    _searchController.clear();
+                                    searchQuery = '';
+                                    selectedFilter = 'Tous';
+                                    _applyFilters();
+                                  }
+                                });
+                              },
+                              icon: Icon(
+                                isSearchVisible ? Icons.close : Icons.search,
+                                color: Colors.white,
+                                size: 28,
+                              ),
+                            ),
+                          ],
                         ),
                         SizedBox(height: 8),
                         Text(
-                          'Liste des convocations des élèves',
+                          'Liste des convocations des élèves (${filteredConvocations.length} résultats)',
                           style: TextStyle(
                             color: Colors.white.withOpacity(0.9),
                             fontSize: 16,
                           ),
                         ),
+                        
+                        // Section de recherche et filtres
+                        if (isSearchVisible) ...[
+                          SizedBox(height: 20),
+                          // Barre de recherche
+                          Container(
+                            decoration: BoxDecoration(
+                              color: Colors.white.withOpacity(0.2),
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(
+                                color: Colors.white.withOpacity(0.3),
+                              ),
+                            ),
+                            child: TextField(
+                              controller: _searchController,
+                              style: TextStyle(color: Colors.white),
+                              decoration: InputDecoration(
+                                hintText: 'Rechercher par nom d\'élève, classe, remarque...',
+                                hintStyle: TextStyle(
+                                  color: Colors.white.withOpacity(0.7),
+                                  fontSize: 14,
+                                ),
+                                prefixIcon: Icon(
+                                  Icons.search,
+                                  color: Colors.white.withOpacity(0.8),
+                                ),
+                                border: InputBorder.none,
+                                contentPadding: EdgeInsets.symmetric(
+                                  horizontal: 16,
+                                  vertical: 14,
+                                ),
+                              ),
+                            ),
+                          ),
+                          
+                          SizedBox(height: 16),
+                          
+                          // Filtres par date
+                          Row(
+                            children: [
+                              Text(
+                                'Filtrer par: ',
+                                style: TextStyle(
+                                  color: Colors.white.withOpacity(0.9),
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
+                              SizedBox(width: 8),
+                              Expanded(
+                                child: SingleChildScrollView(
+                                  scrollDirection: Axis.horizontal,
+                                  child: Row(
+                                    children: [
+                                      'Tous',
+                                      'Aujourd\'hui',
+                                      'Cette semaine',
+                                      'Ce mois',
+                                    ].map((filter) => Padding(
+                                      padding: EdgeInsets.only(right: 8),
+                                      child: FilterChip(
+                                        label: Text(
+                                          filter,
+                                          style: TextStyle(
+                                            color: selectedFilter == filter
+                                                ? orangeColor
+                                                : const Color.fromARGB(255, 255, 97, 5).withOpacity(0.9),
+                                            fontSize: 12,
+                                            fontWeight: FontWeight.w500,
+                                          ),
+                                        ),
+                                        selected: selectedFilter == filter,
+                                        onSelected: (selected) {
+                                          setState(() {
+                                            selectedFilter = filter;
+                                            _applyFilters();
+                                          });
+                                        },
+                                        backgroundColor: Colors.white.withOpacity(0.2),
+                                        selectedColor: Colors.white.withOpacity(0.9),
+                                        checkmarkColor: orangeColor,
+                                        side: BorderSide(
+                                          color: Colors.white.withOpacity(0.3),
+                                        ),
+                                      ),
+                                    )).toList(),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
                       ],
                     ),
                   ),
                 ),
               ),
             ),
+            actions: [
+              // Bouton de rafraîchissement
+              IconButton(
+                onPressed: _fetchConvocations,
+                icon: Icon(Icons.refresh, color: Colors.white),
+              ),
+            ],
           ),
+          
           SliverPadding(
             padding: EdgeInsets.all(16.0),
             sliver: isLoading
                 ? SliverFillRemaining(
                     child: Center(
-                      child: CircularProgressIndicator(
-                        valueColor: AlwaysStoppedAnimation<Color>(orangeColor),
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          CircularProgressIndicator(
+                            valueColor: AlwaysStoppedAnimation<Color>(orangeColor),
+                          ),
+                          SizedBox(height: 16),
+                          Text(
+                            'Chargement des convocations...',
+                            style: TextStyle(
+                              color: darkColor.withOpacity(0.7),
+                              fontSize: 16,
+                            ),
+                          ),
+                        ],
                       ),
                     ),
                   )
@@ -155,26 +396,54 @@ class _ConvocationScreenState extends State<ConvocationScreen> {
                           ),
                         ),
                       )
-                    : convocations.isEmpty
+                    : filteredConvocations.isEmpty
                         ? SliverFillRemaining(
                             child: Center(
                               child: Column(
                                 mainAxisAlignment: MainAxisAlignment.center,
                                 children: [
                                   Icon(
-                                    Icons.info_outline,
+                                    searchQuery.isNotEmpty || selectedFilter != 'Tous'
+                                        ? Icons.search_off
+                                        : Icons.info_outline,
                                     color: greenColor,
                                     size: 60,
                                   ),
                                   SizedBox(height: 16),
                                   Text(
-                                    'Aucune convocation trouvée',
+                                    searchQuery.isNotEmpty || selectedFilter != 'Tous'
+                                        ? 'Aucune convocation trouvée\npour votre recherche'
+                                        : 'Aucune convocation trouvée',
                                     style: TextStyle(
                                       color: darkColor,
                                       fontSize: 18,
                                       fontWeight: FontWeight.w500,
                                     ),
+                                    textAlign: TextAlign.center,
                                   ),
+                                  if (searchQuery.isNotEmpty || selectedFilter != 'Tous') ...[
+                                    SizedBox(height: 16),
+                                    ElevatedButton(
+                                      onPressed: () {
+                                        setState(() {
+                                          _searchController.clear();
+                                          searchQuery = '';
+                                          selectedFilter = 'Tous';
+                                          _applyFilters();
+                                        });
+                                      },
+                                      style: ElevatedButton.styleFrom(
+                                        backgroundColor: orangeColor,
+                                        shape: RoundedRectangleBorder(
+                                          borderRadius: BorderRadius.circular(8),
+                                        ),
+                                      ),
+                                      child: Text(
+                                        'Effacer les filtres',
+                                        style: TextStyle(color: Colors.white),
+                                      ),
+                                    ),
+                                  ],
                                 ],
                               ),
                             ),
@@ -182,23 +451,23 @@ class _ConvocationScreenState extends State<ConvocationScreen> {
                         : SliverList(
                             delegate: SliverChildBuilderDelegate(
                               (context, index) {
-                                final convocation = convocations[index].data() as Map<String, dynamic>;
+                                final convocation = filteredConvocations[index].data() as Map<String, dynamic>;
                                 return _buildConvocationCard(convocation, context);
                               },
-                              childCount: convocations.length,
+                              childCount: filteredConvocations.length,
                             ),
                           ),
           ),
         ],
       ),
-      floatingActionButton: FloatingActionButton(
+     /* floatingActionButton: FloatingActionButton(
         onPressed: () {
           // Navigation pour ajouter une nouvelle convocation
           // Vous pouvez implémenter cette fonctionnalité si nécessaire
         },
         backgroundColor: orangeColor,
         child: Icon(Icons.add, color: Colors.white),
-      ),
+      ),*/
     );
   }
 
@@ -324,8 +593,6 @@ class _ConvocationScreenState extends State<ConvocationScreen> {
               ],
             ),
           ),
-          
-          // Boutons d'actions
         ],
       ),
     );
@@ -393,7 +660,7 @@ class _ConvocationScreenState extends State<ConvocationScreen> {
             ),
             SizedBox(width: 8),
             Text(
-              'convocation',
+              'Convocation',
               style: TextStyle(
                 color: orangeColor,
                 fontWeight: FontWeight.bold,

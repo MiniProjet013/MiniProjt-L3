@@ -17,6 +17,9 @@ class _ModifierClasseScreenState extends State<ModifierClasseScreen> {
   final FirebaseFirestore _db = FirebaseFirestore.instance;
   bool isLoading = true;
   bool isSaving = false;
+  
+  // Variable pour stocker l'ID original du document
+  String? originalDocumentId;
 
   final Color orangeColor = Color.fromARGB(255, 218, 64, 3);
   final Color greenColor = Color.fromARGB(255, 1, 110, 5);
@@ -50,9 +53,16 @@ class _ModifierClasseScreenState extends State<ModifierClasseScreen> {
         isLoading = true;
       });
 
-      DocumentSnapshot classDoc = await _db.collection('classes').doc(widget.classId).get();
+      // البحث عن الكلاس باستخدام idClasse
+      QuerySnapshot querySnapshot = await _db.collection('classes')
+          .where('idClasse', isEqualTo: widget.classId)
+          .limit(1)
+          .get();
       
-      if (classDoc.exists) {
+      if (querySnapshot.docs.isNotEmpty) {
+        DocumentSnapshot classDoc = querySnapshot.docs.first;
+        originalDocumentId = classDoc.id;  // حفظ الـ document ID الأصلي
+        
         Map<String, dynamic> data = classDoc.data() as Map<String, dynamic>;
         
         setState(() {
@@ -65,10 +75,12 @@ class _ModifierClasseScreenState extends State<ModifierClasseScreen> {
           }
         });
       } else {
+        _showErrorMessage("Classe non trouvée");
         Navigator.pop(context);
       }
     } catch (e) {
       print("❌ Erreur lors du chargement des données: $e");
+      _showErrorMessage("Erreur lors du chargement des données");
     } finally {
       setState(() {
         isLoading = false;
@@ -81,6 +93,12 @@ class _ModifierClasseScreenState extends State<ModifierClasseScreen> {
     String numeroClasse = numberController.text.trim();
 
     if (idClasse.isEmpty || numeroClasse.isEmpty || selectedLevels.isEmpty || selectedYear == null) {
+      _showErrorMessage("Veuillez remplir tous les champs obligatoires");
+      return;
+    }
+
+    if (originalDocumentId == null) {
+      _showErrorMessage("Erreur: ID du document non trouvé");
       return;
     }
 
@@ -89,20 +107,27 @@ class _ModifierClasseScreenState extends State<ModifierClasseScreen> {
         isSaving = true;
       });
 
-      await _db.collection('classes').doc(idClasse).update({
+      // تحديث البيانات باستخدام الـ document ID الأصلي
+      await _db.collection('classes').doc(originalDocumentId).update({
+        "idClasse": idClasse,
         "numeroClasse": numeroClasse,
         "niveauxEtude": selectedLevels,
         "anneeScolaire": selectedYear,
         "lastUpdated": FieldValue.serverTimestamp(),
       });
 
+      // تحديث البيانات المرتبطة
       await _updateRelatedStudents(idClasse, numeroClasse);
       await _updateRelatedSchedules(idClasse, numeroClasse);
 
+      _showSuccessMessage("Classe modifiée avec succès!");
+      
+      // العودة مع إشارة النجاح
       Navigator.pop(context, true);
 
     } catch (e) {
       print("❌ Erreur lors de la modification: $e");
+      _showErrorMessage("Erreur lors de la modification: ${e.toString()}");
     } finally {
       setState(() {
         isSaving = false;
@@ -111,39 +136,87 @@ class _ModifierClasseScreenState extends State<ModifierClasseScreen> {
   }
 
   Future<void> _updateRelatedStudents(String classId, String newClassName) async {
-    QuerySnapshot studentsSnapshot = await _db.collection('students')
-      .where('idClasse', isEqualTo: classId)
-      .get();
+    try {
+      QuerySnapshot studentsSnapshot = await _db.collection('students')
+        .where('idClasse', isEqualTo: classId)
+        .get();
 
-    WriteBatch batch = _db.batch();
-    for (var doc in studentsSnapshot.docs) {
-      batch.update(doc.reference, {
-        'numeroClasse': newClassName,
-        'anneeScolaire': selectedYear,
-      });
-    }
-    
-    if (studentsSnapshot.docs.isNotEmpty) {
-      await batch.commit();
+      if (studentsSnapshot.docs.isNotEmpty) {
+        WriteBatch batch = _db.batch();
+        for (var doc in studentsSnapshot.docs) {
+          batch.update(doc.reference, {
+            'numeroClasse': newClassName,
+            'anneeScolaire': selectedYear,
+            'lastUpdated': FieldValue.serverTimestamp(),
+          });
+        }
+        await batch.commit();
+      }
+    } catch (e) {
+      print("❌ Erreur lors de la mise à jour des étudiants: $e");
     }
   }
 
   Future<void> _updateRelatedSchedules(String classId, String newClassName) async {
-    QuerySnapshot schedulesSnapshot = await _db.collection('schedules')
-      .where('idClasse', isEqualTo: classId)
-      .get();
+    try {
+      QuerySnapshot schedulesSnapshot = await _db.collection('schedules')
+        .where('idClasse', isEqualTo: classId)
+        .get();
 
-    WriteBatch batch = _db.batch();
-    for (var doc in schedulesSnapshot.docs) {
-      batch.update(doc.reference, {
-        'nomClasse': newClassName,
-        'anneeScolaire': selectedYear,
-      });
+      if (schedulesSnapshot.docs.isNotEmpty) {
+        WriteBatch batch = _db.batch();
+        for (var doc in schedulesSnapshot.docs) {
+          batch.update(doc.reference, {
+            'nomClasse': newClassName,
+            'anneeScolaire': selectedYear,
+            'lastUpdated': FieldValue.serverTimestamp(),
+          });
+        }
+        await batch.commit();
+      }
+    } catch (e) {
+      print("❌ Erreur lors de la mise à jour des emplois du temps: $e");
     }
-    
-    if (schedulesSnapshot.docs.isNotEmpty) {
-      await batch.commit();
-    }
+  }
+
+  void _showSuccessMessage(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Row(
+          children: [
+            Icon(Icons.check_circle, color: Colors.white),
+            SizedBox(width: 8),
+            Expanded(child: Text(message)),
+          ],
+        ),
+        backgroundColor: greenColor,
+        duration: Duration(seconds: 3),
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(10),
+        ),
+      ),
+    );
+  }
+
+  void _showErrorMessage(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Row(
+          children: [
+            Icon(Icons.error, color: Colors.white),
+            SizedBox(width: 8),
+            Expanded(child: Text(message)),
+          ],
+        ),
+        backgroundColor: Colors.red,
+        duration: Duration(seconds: 4),
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(10),
+        ),
+      ),
+    );
   }
 
   Widget _buildInputField(String label, TextEditingController controller, {bool readOnly = false}) {
@@ -262,8 +335,21 @@ class _ModifierClasseScreenState extends State<ModifierClasseScreen> {
           isLoading
               ? SliverFillRemaining(
                   child: Center(
-                    child: CircularProgressIndicator(
-                      valueColor: AlwaysStoppedAnimation<Color>(orangeColor),
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        CircularProgressIndicator(
+                          valueColor: AlwaysStoppedAnimation<Color>(orangeColor),
+                        ),
+                        SizedBox(height: 16),
+                        Text(
+                          "Chargement des données...",
+                          style: TextStyle(
+                            color: darkColor,
+                            fontSize: 16,
+                          ),
+                        ),
+                      ],
                     ),
                   ),
                 )

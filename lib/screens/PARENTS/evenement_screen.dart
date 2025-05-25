@@ -109,7 +109,7 @@ class _EvenementsPageState extends State<EvenementsPage> {
               gradient: LinearGradient(
                 begin: Alignment.topCenter,
                 end: Alignment.bottomCenter,
-                colors: [Color(0xFF4285F4), Color(0xFF5B6AF0)],
+                colors: [Color.fromARGB(255, 40, 141, 0), Color.fromARGB(255, 63, 136, 3)],
               ),
             ),
             child: SafeArea(
@@ -148,14 +148,14 @@ class _EvenementsPageState extends State<EvenementsPage> {
           ),
         ],
       ),
-      floatingActionButton: FloatingActionButton(
+      /*floatingActionButton: FloatingActionButton(
         onPressed: () {
           // Fonction pour ajouter un nouvel événement
           // Implémentez votre logique ici
         },
         backgroundColor: const Color(0xFF4CAF50),
         child: const Icon(Icons.add),
-      ),
+      ),*/
     );
   }
 

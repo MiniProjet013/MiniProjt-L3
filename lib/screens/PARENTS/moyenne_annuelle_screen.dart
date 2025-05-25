@@ -26,7 +26,7 @@ class _MoyenneAnnuelleScreenState extends State<MoyenneAnnuelleScreen> {
               gradient: LinearGradient(
                 begin: Alignment.topCenter,
                 end: Alignment.bottomCenter,
-                colors: [Color(0xFF4285F4), Color(0xFF5B6AF0)],
+              colors: [Color.fromARGB(255, 40, 141, 0), Color.fromARGB(255, 63, 136, 3)],
               ),
             ),
             child: SafeArea(
@@ -89,7 +89,7 @@ class _MoyenneAnnuelleScreenState extends State<MoyenneAnnuelleScreen> {
                         underline: Container(),
                         icon: const Icon(Icons.keyboard_arrow_down, color: Colors.white),
                         isExpanded: true,
-                        dropdownColor: const Color(0xFF5B6AF0),
+                        dropdownColor: const Color.fromARGB(255, 218, 88, 2),
                       ),
                     ),
                   ),

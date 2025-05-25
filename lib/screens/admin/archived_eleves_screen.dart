@@ -16,10 +16,11 @@ class _ArchiveElevesScreenState extends State<ArchiveElevesScreen> {
   bool isLoading = true;
   List<DocumentSnapshot> eleves = [];
   String? errorMessage;
-  
-  // Pour stocker l'élève sélectionné
   DocumentSnapshot? selectedEleve;
-  bool showDetails = false;
+  String? filterAnneeScolaire;
+  String searchQuery = '';
+  final TextEditingController _searchController = TextEditingController();
+  final ScrollController _scrollController = ScrollController();
 
   @override
   void initState() {
@@ -50,238 +51,183 @@ class _ArchiveElevesScreenState extends State<ArchiveElevesScreen> {
   void _selectEleve(DocumentSnapshot eleve) {
     setState(() {
       selectedEleve = eleve;
-      showDetails = true;
+    });
+    _scrollController.animateTo(
+      0,
+      duration: Duration(milliseconds: 300),
+      curve: Curves.easeOut,
+    );
+  }
+
+  void _clearSelection() {
+    setState(() {
+      selectedEleve = null;
     });
   }
 
-  void _closeDetails() {
-    setState(() {
-      showDetails = false;
-    });
+  Future<void> _restoreEleve(DocumentSnapshot doc) async {
+    final confirmed = await showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text('Confirmer la restauration'),
+        content: Text('Voulez-vous vraiment restaurer cet élève vers la collection élèves? Cette action est réversible.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: Text('Annuler', style: TextStyle(color: darkColor)),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: greenColor),
+            onPressed: () => Navigator.pop(context, true),
+            child: Text('Confirmer', style: TextStyle(color: lightColor)),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed == true) {
+      try {
+        final eleveData = doc.data() as Map<String, dynamic>;
+        await _firestore.collection('ELEVES').doc(doc.id).set(eleveData);
+        await doc.reference.delete();
+        
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Élève restauré avec succès!'),
+            backgroundColor: greenColor,
+          )
+        );
+        
+        _fetchEleves();
+        _clearSelection();
+      } catch (e) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Erreur lors de la restauration: $e'),
+            backgroundColor: orangeColor,
+          )
+        );
+      }
+    }
+  }
+
+  Future<void> _deleteEleve(DocumentSnapshot doc) async {
+    final confirmed = await showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text('Confirmer la suppression'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('Voulez-vous vraiment supprimer définitivement cet élève?'),
+            SizedBox(height: 8),
+            Text('Cette action est irréversible et toutes les données seront perdues!', 
+              style: TextStyle(color: orangeColor, fontWeight: FontWeight.bold)),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: Text('Annuler', style: TextStyle(color: darkColor)),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: orangeColor),
+            onPressed: () => Navigator.pop(context, true),
+            child: Text('Supprimer', style: TextStyle(color: lightColor)),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed == true) {
+      try {
+        await doc.reference.delete();
+        
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Élève supprimé définitivement!'),
+            backgroundColor: greenColor,
+          )
+        );
+        
+        _fetchEleves();
+        _clearSelection();
+      } catch (e) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Erreur lors de la suppression: $e'),
+            backgroundColor: orangeColor,
+          )
+        );
+      }
+    }
+  }
+
+  List<DocumentSnapshot> get _filteredEleves {
+    return eleves.where((doc) {
+      final eleve = doc.data() as Map<String, dynamic>;
+      final nomComplet = '${eleve['prenom']} ${eleve['nom']}'.toLowerCase();
+      final annee = eleve['anneeScolaire'] ?? '';
+      
+      final matchesSearch = nomComplet.contains(searchQuery.toLowerCase());
+      final matchesAnnee = filterAnneeScolaire == null || 
+                          filterAnneeScolaire!.isEmpty || 
+                          annee == filterAnneeScolaire;
+      
+      return matchesSearch && matchesAnnee;
+    }).toList();
   }
 
   @override
   Widget build(BuildContext context) {
+    final filteredEleves = _filteredEleves;
+    final anneesScolaires = eleves
+        .map((doc) => (doc.data() as Map<String, dynamic>)['anneeScolaire'] as String?)
+        .where((annee) => annee != null)
+        .toSet()
+        .toList();
+
     return Scaffold(
       backgroundColor: lightColor,
-      body: Stack(
-        children: [
-          // Contenu principal
-          CustomScrollView(
-            slivers: [
-              SliverAppBar(
-                expandedHeight: 150.0,
-                floating: false,
-                pinned: true,
-                flexibleSpace: FlexibleSpaceBar(
-                  background: Container(
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight,
-                        colors: [
-                          orangeColor.withOpacity(0.8),
-                          greenColor.withOpacity(0.8)
-                        ],
-                      ),
-                    ),
-                    child: SafeArea(
-                      child: Padding(
-                        padding: const EdgeInsets.all(20.0),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          mainAxisAlignment: MainAxisAlignment.end,
-                          children: [
-                            Text(
-                              'ARCHIVES DES ÉLÈVES',
-                              style: TextStyle(
-                                color: Colors.white,
-                                fontSize: 28,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                            SizedBox(height: 8),
-                            Text(
-                              'Liste des anciens élèves de l\'établissement',
-                              style: TextStyle(
-                                color: Colors.white.withOpacity(0.9),
-                                fontSize: 16,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
+      body: NestedScrollView(
+        controller: _scrollController,
+        headerSliverBuilder: (context, innerBoxIsScrolled) {
+          return [
+            SliverAppBar(
+              expandedHeight: 120.0,
+              floating: false,
+              pinned: true,
+              flexibleSpace: FlexibleSpaceBar(
+                background: Container(
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                      colors: [
+                        orangeColor.withOpacity(0.8),
+                        greenColor.withOpacity(0.8)
+                      ],
                     ),
                   ),
-                ),
-              ),
-              SliverPadding(
-                padding: EdgeInsets.all(16.0),
-                sliver: isLoading
-                    ? SliverFillRemaining(
-                        child: Center(
-                          child: CircularProgressIndicator(
-                            valueColor: AlwaysStoppedAnimation<Color>(orangeColor),
-                          ),
-                        ),
-                      )
-                    : errorMessage != null
-                        ? SliverFillRemaining(
-                            child: Center(
-                              child: Column(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  Icon(
-                                    Icons.error_outline,
-                                    color: orangeColor,
-                                    size: 60,
-                                  ),
-                                  SizedBox(height: 16),
-                                  Text(
-                                    errorMessage!,
-                                    style: TextStyle(color: darkColor),
-                                    textAlign: TextAlign.center,
-                                  ),
-                                  SizedBox(height: 24),
-                                  ElevatedButton(
-                                    onPressed: _fetchEleves,
-                                    style: ElevatedButton.styleFrom(
-                                      backgroundColor: greenColor,
-                                      shape: RoundedRectangleBorder(
-                                        borderRadius: BorderRadius.circular(8),
-                                      ),
-                                    ),
-                                    child: Text(
-                                      'Réessayer',
-                                      style: TextStyle(color: Colors.white),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          )
-                        : eleves.isEmpty
-                            ? SliverFillRemaining(
-                                child: Center(
-                                  child: Column(
-                                    mainAxisAlignment: MainAxisAlignment.center,
-                                    children: [
-                                      Icon(
-                                        Icons.info_outline,
-                                        color: greenColor,
-                                        size: 60,
-                                      ),
-                                      SizedBox(height: 16),
-                                      Text(
-                                        'Aucun élève trouvé dans les archives',
-                                        style: TextStyle(
-                                          color: darkColor,
-                                          fontSize: 18,
-                                          fontWeight: FontWeight.w500,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              )
-                            : SliverList(
-                                delegate: SliverChildBuilderDelegate(
-                                  (context, index) {
-                                    final eleve = eleves[index].data() as Map<String, dynamic>;
-                                    return _buildEleveCard(eleve, context, eleves[index]);
-                                  },
-                                  childCount: eleves.length,
-                                ),
-                              ),
-              ),
-            ],
-          ),
-          
-          // Panneau de détails qui apparaît quand on clique sur un élève
-          if (showDetails && selectedEleve != null)
-            _buildDetailsPanel(selectedEleve!.data() as Map<String, dynamic>),
-        ],
-      ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: () {
-          // Fonctionnalité pour ajouter un nouvel élève aux archives
-        },
-        backgroundColor: orangeColor,
-        child: Icon(Icons.add, color: Colors.white),
-      ),
-    );
-  }
-
-  Widget _buildEleveCard(Map<String, dynamic> eleve, BuildContext context, DocumentSnapshot eleveDoc) {
-    final nom = eleve['nom'] ?? '';
-    final prenom = eleve['prenom'] ?? '';
-    final nomComplet = '$prenom $nom';
-    final dateNaissance = eleve['dateNaissance'] ?? '';
-    final classe = eleve['classe'] ?? '';
-    final anneeScholaire = eleve['anneeScholaire'] ?? '';
-
-    return GestureDetector(
-      onTap: () => _selectEleve(eleveDoc),
-      child: Card(
-        margin: EdgeInsets.only(bottom: 16),
-        elevation: 2,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(15),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // En-tête de la carte avec gradient
-            Container(
-              height: 80,
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                  colors: [
-                    greenColor.withOpacity(0.8),
-                    orangeColor.withOpacity(0.8),
-                  ],
-                ),
-                borderRadius: BorderRadius.only(
-                  topLeft: Radius.circular(15),
-                  topRight: Radius.circular(15),
-                ),
-              ),
-              child: Padding(
-                padding: const EdgeInsets.all(16.0),
-                child: Row(
-                  children: [
-                    Container(
-                      width: 48,
-                      height: 48,
-                      decoration: BoxDecoration(
-                        color: Colors.white.withOpacity(0.3),
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                      child: Icon(
-                        Icons.person,
-                        color: Colors.white,
-                      ),
-                    ),
-                    SizedBox(width: 16),
-                    Expanded(
+                  child: SafeArea(
+                    child: Padding(
+                      padding: const EdgeInsets.all(20.0),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
-                        mainAxisAlignment: MainAxisAlignment.center,
+                        mainAxisAlignment: MainAxisAlignment.end,
                         children: [
                           Text(
-                            nomComplet,
+                            'ARCHIVE DES ÉLÈVES',
                             style: TextStyle(
                               color: Colors.white,
+                              fontSize: 24,
                               fontWeight: FontWeight.bold,
-                              fontSize: 16,
                             ),
-                            overflow: TextOverflow.ellipsis,
                           ),
                           SizedBox(height: 4),
                           Text(
-                            'Né(e) le: $dateNaissance',
+                            'Gestion des élèves archivés',
                             style: TextStyle(
                               color: Colors.white.withOpacity(0.9),
                               fontSize: 14,
@@ -290,45 +236,170 @@ class _ArchiveElevesScreenState extends State<ArchiveElevesScreen> {
                         ],
                       ),
                     ),
-                  ],
+                  ),
                 ),
               ),
             ),
-            
-            // Contenu de base de l'élève
-            Padding(
-              padding: const EdgeInsets.all(16.0),
+          ];
+        },
+        body: Column(
+          children: [
+            // Search and Filter Section
+            Container(
+              padding: EdgeInsets.all(16),
+              color: Colors.white,
               child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  _buildInfoRow(
-                    'Année Scolaire',
-                    anneeScholaire,
-                    Icons.calendar_today,
-                    orangeColor,
-                  ),
-                  _buildInfoRow(
-                    'Classe',
-                    classe,
-                    Icons.class_,
-                    greenColor,
-                  ),
-                  
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.end,
-                    children: [
-                      TextButton.icon(
-                        onPressed: () => _selectEleve(eleveDoc),
-                        icon: Icon(Icons.visibility, color: greenColor),
-                        label: Text(
-                          'Voir les détails',
-                          style: TextStyle(color: greenColor),
-                        ),
+                  TextField(
+                    controller: _searchController,
+                    onChanged: (value) {
+                      setState(() {
+                        searchQuery = value;
+                      });
+                    },
+                    decoration: InputDecoration(
+                      filled: true,
+                      fillColor: Colors.grey[100],
+                      hintText: 'Rechercher par nom...',
+                      prefixIcon: Icon(Icons.search, color: darkColor.withOpacity(0.6)),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: BorderSide.none,
                       ),
-                    ],
-                  )
+                      contentPadding: EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+                    ),
+                  ),
+                  SizedBox(height: 12),
+                  SizedBox(
+                    height: 50,
+                    child: ListView(
+                      scrollDirection: Axis.horizontal,
+                      children: [
+                        SizedBox(width: 8),
+                        ChoiceChip(
+                          label: Text('Toutes les années'),
+                          selected: filterAnneeScolaire == null,
+                          onSelected: (_) {
+                            setState(() {
+                              filterAnneeScolaire = null;
+                            });
+                          },
+                          selectedColor: greenColor,
+                          labelStyle: TextStyle(
+                            color: filterAnneeScolaire == null ? lightColor : darkColor,
+                          ),
+                        ),
+                        ...anneesScolaires.map((annee) {
+                          return Padding(
+                            padding: const EdgeInsets.only(left: 8.0),
+                            child: ChoiceChip(
+                              label: Text(annee!),
+                              selected: filterAnneeScolaire == annee,
+                              onSelected: (_) {
+                                setState(() {
+                                  filterAnneeScolaire = annee;
+                                });
+                              },
+                              selectedColor: greenColor,
+                              labelStyle: TextStyle(
+                                color: filterAnneeScolaire == annee ? lightColor : darkColor,
+                              ),
+                            ),
+                          );
+                        }).toList(),
+                        SizedBox(width: 8),
+                      ],
+                    ),
+                  ),
                 ],
               ),
+            ),
+            Divider(height: 1, thickness: 1, color: Colors.grey[200]),
+            // Students List
+            Expanded(
+              child: isLoading
+                  ? Center(
+                      child: CircularProgressIndicator(
+                        valueColor: AlwaysStoppedAnimation<Color>(orangeColor),
+                      ),
+                    )
+                  : errorMessage != null
+                      ? Center(
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(
+                                Icons.error_outline,
+                                color: orangeColor,
+                                size: 60,
+                              ),
+                              SizedBox(height: 16),
+                              Text(
+                                errorMessage!,
+                                style: TextStyle(color: darkColor),
+                                textAlign: TextAlign.center,
+                              ),
+                              SizedBox(height: 24),
+                              ElevatedButton(
+                                onPressed: _fetchEleves,
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: greenColor,
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(8),
+                                  ),
+                                ),
+                                child: Text(
+                                  'Réessayer',
+                                  style: TextStyle(color: Colors.white),
+                                ),
+                              ),
+                            ],
+                          ),
+                        )
+                      : filteredEleves.isEmpty
+                          ? Center(
+                              child: Column(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Icon(
+                                    Icons.archive_outlined,
+                                    color: greenColor,
+                                    size: 60,
+                                  ),
+                                  SizedBox(height: 16),
+                                  Text(
+                                    'Aucun élève trouvé',
+                                    style: TextStyle(
+                                      color: darkColor,
+                                      fontSize: 18,
+                                      fontWeight: FontWeight.w500,
+                                    ),
+                                  ),
+                                  SizedBox(height: 8),
+                                  if (searchQuery.isNotEmpty || filterAnneeScolaire != null)
+                                    Text(
+                                      'Essayez de modifier vos critères de recherche',
+                                      style: TextStyle(
+                                        color: darkColor.withOpacity(0.6),
+                                      ),
+                                    ),
+                                ],
+                              ),
+                            )
+                          : selectedEleve != null
+                              ? SingleChildScrollView(
+                                  padding: EdgeInsets.all(16),
+                                  child: _buildEleveDetailCard(selectedEleve!, context),
+                                )
+                              : ListView.builder(
+                                  padding: EdgeInsets.all(16),
+                                  itemCount: filteredEleves.length,
+                                  itemBuilder: (context, index) {
+                                    final eleve = filteredEleves[index];
+                                    final eleveData = eleve.data() as Map<String, dynamic>;
+                                    return _buildEleveCard(eleve, eleveData, context);
+                                  },
+                                ),
             ),
           ],
         ),
@@ -336,126 +407,205 @@ class _ArchiveElevesScreenState extends State<ArchiveElevesScreen> {
     );
   }
 
-  Widget _buildDetailsPanel(Map<String, dynamic> eleve) {
-    final nom = eleve['nom'] ?? '';
-    final prenom = eleve['prenom'] ?? '';
-    final nomComplet = '$prenom $nom';
-    final dateNaissance = eleve['dateNaissance'] ?? '';
-    final lieuNaissance = eleve['lieuNaissance'] ?? '';
-    final adresse = eleve['adresse'] ?? '';
-    final telephone = eleve['telephone'] ?? '';
-    final email = eleve['email'] ?? '';
-    final classe = eleve['classe'] ?? '';
-    final anneeScholaire = eleve['anneeScholaire'] ?? '';
-    final dateInscription = eleve['dateInscription'] ?? '';
-    final dateSortie = eleve['dateSortie'] ?? '';
-    final motifSortie = eleve['motifSortie'] ?? '';
-    final nomParent = eleve['nomParent'] ?? '';
-    final telephoneParent = eleve['telephoneParent'] ?? '';
-    
-    return Container(
-      width: double.infinity,
-      height: double.infinity,
-      color: Colors.black.withOpacity(0.5),
-      child: Center(
-        child: Container(
-          margin: EdgeInsets.all(20),
-          width: double.infinity,
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(20),
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
+  Widget _buildEleveCard(DocumentSnapshot doc, Map<String, dynamic> eleve, BuildContext context) {
+    final nom = eleve['nom'] ?? 'Non spécifié';
+    final prenom = eleve['prenom'] ?? 'Non spécifié';
+    final classe = eleve['classe'] ?? 'Non spécifiée';
+    final anneeScolaire = eleve['anneeScolaire'] ?? 'Non spécifiée';
+
+    return Card(
+      margin: EdgeInsets.only(bottom: 16),
+      elevation: 1,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: InkWell(
+        onTap: () => _selectEleve(doc),
+        borderRadius: BorderRadius.circular(12),
+        child: Padding(
+          padding: const EdgeInsets.all(16.0),
+          child: Row(
             children: [
-              // En-tête
               Container(
-                padding: EdgeInsets.all(20),
+                width: 48,
+                height: 48,
                 decoration: BoxDecoration(
                   gradient: LinearGradient(
                     begin: Alignment.topLeft,
                     end: Alignment.bottomRight,
                     colors: [
-                      orangeColor.withOpacity(0.8),
-                      greenColor.withOpacity(0.8),
+                      orangeColor.withOpacity(0.7),
+                      greenColor.withOpacity(0.7),
                     ],
                   ),
-                  borderRadius: BorderRadius.only(
-                    topLeft: Radius.circular(20),
-                    topRight: Radius.circular(20),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Center(
+                  child: Icon(
+                    Icons.person,
+                    color: Colors.white,
+                    size: 24,
                   ),
                 ),
-                child: Row(
+              ),
+              SizedBox(width: 16),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Container(
-                      width: 48,
-                      height: 48,
-                      decoration: BoxDecoration(
-                        color: Colors.white.withOpacity(0.3),
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                      child: Icon(
-                        Icons.person,
-                        color: Colors.white,
+                    Text(
+                      '$prenom $nom',
+                      style: TextStyle(
+                        color: darkColor,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 16,
                       ),
                     ),
-                    SizedBox(width: 16),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'DÉTAILS DE L\'ÉLÈVE',
-                            style: TextStyle(
-                              color: Colors.white,
-                              fontWeight: FontWeight.bold,
-                              fontSize: 18,
-                            ),
-                          ),
-                          SizedBox(height: 4),
-                          Text(
-                            nomComplet,
-                            style: TextStyle(
-                              color: Colors.white,
-                              fontSize: 16,
-                            ),
-                          ),
-                        ],
+                    SizedBox(height: 4),
+                    Text(
+                      'Classe: $classe',
+                      style: TextStyle(
+                        color: darkColor.withOpacity(0.7),
+                        fontSize: 14,
                       ),
                     ),
-                    IconButton(
-                      icon: Icon(Icons.close, color: Colors.white),
-                      onPressed: _closeDetails,
+                    SizedBox(height: 4),
+                    Row(
+                      children: [
+                        Icon(Icons.calendar_today, size: 14, color: greenColor),
+                        SizedBox(width: 4),
+                        Text(
+                          anneeScolaire,
+                          style: TextStyle(
+                            color: greenColor,
+                            fontSize: 13,
+                          ),
+                        ),
+                      ],
                     ),
                   ],
                 ),
               ),
-              
-              // Contenu détaillé avec défilement
-              Flexible(
-                child: SingleChildScrollView(
-                  padding: EdgeInsets.all(20),
+              Icon(
+                Icons.arrow_forward_ios,
+                color: greenColor,
+                size: 16,
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildEleveDetailCard(DocumentSnapshot doc, BuildContext context) {
+    final eleve = doc.data() as Map<String, dynamic>;
+    final nom = eleve['nom'] ?? 'Non spécifié';
+    final prenom = eleve['prenom'] ?? 'Non spécifié';
+    final classe = eleve['classe'] ?? 'Non spécifiée';
+    final dateNaissance = eleve['dateNaissance'] ?? 'Non spécifiée';
+    final lieuNaissance = eleve['lieuNaissance'] ?? 'Non spécifié';
+    final adresse = eleve['adresse'] ?? 'Non spécifié';
+    final telephone = eleve['telephone'] ?? 'Non spécifié';
+    final email = eleve['email'] ?? 'Non spécifié';
+    final anneeScolaire = eleve['anneeScolaire'] ?? 'Non spécifiée';
+    final dateInscription = eleve['dateInscription'] ?? 'Non spécifiée';
+    final dateSortie = eleve['dateSortie'] ?? 'Non spécifiée';
+    final motifSortie = eleve['motifSortie'] ?? 'Non spécifié';
+    final nomParent = eleve['nomParent'] ?? 'Non spécifié';
+    final telephoneParent = eleve['telephoneParent'] ?? 'Non spécifié';
+    final archiveDate = eleve['archiveDate'] ?? 'Non spécifiée';
+
+    return SingleChildScrollView(
+      padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Card(
+            margin: EdgeInsets.only(bottom: 8),
+            elevation: 0.8,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Container(
+                  height: 100,
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                      colors: [
+                        orangeColor.withOpacity(0.8),
+                        greenColor.withOpacity(0.8),
+                      ],
+                    ),
+                    borderRadius: BorderRadius.only(
+                      topLeft: Radius.circular(12),
+                      topRight: Radius.circular(12),
+                    ),
+                  ),
+                  child: Padding(
+                    padding: const EdgeInsets.all(16.0),
+                    child: Row(
+                      children: [
+                        Container(
+                          width: 48,
+                          height: 48,
+                          decoration: BoxDecoration(
+                            color: Colors.white.withOpacity(0.3),
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          child: Icon(
+                            Icons.person,
+                            color: Colors.white,
+                            size: 24,
+                          ),
+                        ),
+                        SizedBox(width: 16),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Text(
+                                '$prenom $nom',
+                                style: TextStyle(
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 18,
+                                ),
+                                overflow: TextOverflow.ellipsis,
+                                maxLines: 1,
+                              ),
+                              SizedBox(height: 4),
+                              Text(
+                                'Classe: $classe',
+                                style: TextStyle(
+                                  color: Colors.white.withOpacity(0.9),
+                                  fontSize: 14,
+                                ),
+                                overflow: TextOverflow.ellipsis,
+                                maxLines: 1,
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+                
+                Padding(
+                  padding: const EdgeInsets.all(16.0),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      // Section Informations Personnelles
-                      _buildSectionTitle('Informations Personnelles', Icons.person_outline),
-                      _buildInfoRow(
-                        'Nom Complet',
-                        nomComplet,
-                        Icons.person,
-                        orangeColor,
-                      ),
                       _buildInfoRow(
                         'Date de Naissance',
-                        dateNaissance,
+                        '$dateNaissance à $lieuNaissance',
                         Icons.cake,
-                        greenColor,
-                      ),
-                      _buildInfoRow(
-                        'Lieu de Naissance',
-                        lieuNaissance,
-                        Icons.location_on,
                         orangeColor,
                       ),
                       _buildInfoRow(
@@ -476,121 +626,153 @@ class _ArchiveElevesScreenState extends State<ArchiveElevesScreen> {
                         Icons.email,
                         greenColor,
                       ),
-                      
-                      SizedBox(height: 24),
-                      
-                      // Section Informations Scolaires
-                      _buildSectionTitle('Informations Scolaires', Icons.school),
-                      _buildInfoRow(
-                        'Classe',
-                        classe,
-                        Icons.class_,
-                        orangeColor,
-                      ),
                       _buildInfoRow(
                         'Année Scolaire',
-                        anneeScholaire,
+                        anneeScolaire,
                         Icons.calendar_today,
-                        greenColor,
+                        orangeColor,
                       ),
+                      Divider(height: 24),
                       _buildInfoRow(
                         'Date d\'Inscription',
                         dateInscription,
                         Icons.date_range,
-                        orangeColor,
+                        greenColor,
                       ),
                       _buildInfoRow(
                         'Date de Sortie',
                         dateSortie,
                         Icons.exit_to_app,
-                        greenColor,
-                      ),
-                      _buildRemarkSection('Motif de Sortie', motifSortie),
-                      
-                      SizedBox(height: 24),
-                      
-                      // Section Parent/Tuteur
-                      _buildSectionTitle('Information Parent/Tuteur', Icons.family_restroom),
-                      _buildInfoRow(
-                        'Nom du Parent/Tuteur',
-                        nomParent,
-                        Icons.person_outline,
                         orangeColor,
                       ),
+                      _buildRemarkSection('Motif de Sortie', motifSortie),
+                      Divider(height: 24),
                       _buildInfoRow(
-                        'Téléphone du Parent',
+                        'Parent/Tuteur',
+                        nomParent,
+                        Icons.family_restroom,
+                        greenColor,
+                      ),
+                      _buildInfoRow(
+                        'Téléphone Parent',
                         telephoneParent,
-                        Icons.phone,
+                        Icons.phone_android,
+                        orangeColor,
+                      ),
+                      Divider(height: 24),
+                      _buildInfoRow(
+                        'Date d\'archivage',
+                        archiveDate,
+                        Icons.access_time,
                         greenColor,
                       ),
                     ],
                   ),
                 ),
-              ),
-              
-              // Boutons d'action en bas
-              Container(
-                padding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                decoration: BoxDecoration(
-                  color: Colors.grey.shade100,
-                  borderRadius: BorderRadius.only(
-                    bottomLeft: Radius.circular(20),
-                    bottomRight: Radius.circular(20),
-                  ),
-                ),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.end,
-                  children: [
-                    TextButton.icon(
-                      onPressed: _closeDetails,
-                      icon: Icon(Icons.close, color: darkColor),
-                      label: Text('Fermer', style: TextStyle(color: darkColor)),
-                    ),
-                    SizedBox(width: 8),
-                    ElevatedButton.icon(
-                      onPressed: () {
-                        // Action pour imprimer ou exporter les détails
-                      },
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: greenColor,
-                        foregroundColor: Colors.white,
-                      ),
-                      icon: Icon(Icons.print),
-                      label: Text('Imprimer'),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildSectionTitle(String title, IconData icon) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 16.0),
-      child: Row(
-        children: [
-          Icon(icon, color: greenColor),
-          SizedBox(width: 8),
-          Text(
-            title,
-            style: TextStyle(
-              color: greenColor,
-              fontWeight: FontWeight.bold,
-              fontSize: 16,
+              ],
             ),
           ),
-          Expanded(
-            child: Divider(
-              indent: 16,
-              color: greenColor.withOpacity(0.3),
+          
+          Padding(
+            padding: const EdgeInsets.only(bottom: 16),
+            child: LayoutBuilder(
+              builder: (context, constraints) {
+                if (constraints.maxWidth > 400) {
+                  return Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      _buildActionButton(
+                        icon: Icons.arrow_back,
+                        label: 'Retour',
+                        color: darkColor,
+                        onPressed: _clearSelection,
+                        isOutlined: true,
+                      ),
+                      SizedBox(width: 8),
+                      _buildActionButton(
+                        icon: Icons.restore,
+                        label: 'Restaurer',
+                        color: greenColor,
+                        onPressed: () => _restoreEleve(doc),
+                      ),
+                      SizedBox(width: 8),
+                      _buildActionButton(
+                        icon: Icons.delete_forever,
+                        label: 'Supprimer',
+                        color: orangeColor,
+                        onPressed: () => _deleteEleve(doc),
+                      ),
+                    ],
+                  );
+                } else {
+                  return Column(
+                    children: [
+                      _buildActionButton(
+                        icon: Icons.restore,
+                        label: 'Restaurer',
+                        color: greenColor,
+                        onPressed: () => _restoreEleve(doc),
+                      ),
+                      SizedBox(height: 8),
+                      _buildActionButton(
+                        icon: Icons.delete_forever,
+                        label: 'Supprimer',
+                        color: orangeColor,
+                        onPressed: () => _deleteEleve(doc),
+                      ),
+                      SizedBox(height: 8),
+                      _buildActionButton(
+                        icon: Icons.arrow_back,
+                        label: 'Retour à la liste',
+                        color: darkColor,
+                        onPressed: _clearSelection,
+                        isOutlined: true,
+                      ),
+                    ],
+                  );
+                }
+              },
             ),
           ),
         ],
       ),
+    );
+  }
+
+  Widget _buildActionButton({
+    required IconData icon,
+    required String label,
+    required Color color,
+    required VoidCallback onPressed,
+    bool isOutlined = false,
+  }) {
+    return SizedBox(
+      width: double.infinity,
+      child: isOutlined
+          ? OutlinedButton.icon(
+              icon: Icon(icon, size: 20, color: color),
+              label: Text(label, style: TextStyle(color: color)),
+              style: OutlinedButton.styleFrom(
+                padding: EdgeInsets.symmetric(vertical: 12),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                side: BorderSide(color: color),
+              ),
+              onPressed: onPressed,
+            )
+          : ElevatedButton.icon(
+              icon: Icon(icon, size: 20, color: Colors.white),
+              label: Text(label, style: TextStyle(color: Colors.white)),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: color,
+                padding: EdgeInsets.symmetric(vertical: 12),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
+              ),
+              onPressed: onPressed,
+            ),
     );
   }
 
@@ -601,15 +783,15 @@ class _ArchiveElevesScreenState extends State<ArchiveElevesScreen> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Container(
-            width: 28,
-            height: 28,
+            width: 32,
+            height: 32,
             decoration: BoxDecoration(
               color: iconColor.withOpacity(0.1),
-              borderRadius: BorderRadius.circular(6),
+              borderRadius: BorderRadius.circular(8),
             ),
             child: Icon(
               icon,
-              size: 16,
+              size: 18,
               color: iconColor,
             ),
           ),
@@ -622,7 +804,7 @@ class _ArchiveElevesScreenState extends State<ArchiveElevesScreen> {
                   label,
                   style: TextStyle(
                     color: darkColor.withOpacity(0.7),
-                    fontSize: 12,
+                    fontSize: 13,
                     fontWeight: FontWeight.w500,
                   ),
                 ),
@@ -631,7 +813,7 @@ class _ArchiveElevesScreenState extends State<ArchiveElevesScreen> {
                   value,
                   style: TextStyle(
                     color: darkColor,
-                    fontSize: 14,
+                    fontSize: 15,
                     fontWeight: FontWeight.w600,
                   ),
                 ),
@@ -660,7 +842,7 @@ class _ArchiveElevesScreenState extends State<ArchiveElevesScreen> {
               style: TextStyle(
                 color: orangeColor,
                 fontWeight: FontWeight.bold,
-                fontSize: 14,
+                fontSize: 15,
               ),
             ),
           ],
@@ -681,7 +863,6 @@ class _ArchiveElevesScreenState extends State<ArchiveElevesScreen> {
             style: TextStyle(
               color: darkColor,
               fontSize: 14,
-              height: 1.4,
             ),
           ),
         ),

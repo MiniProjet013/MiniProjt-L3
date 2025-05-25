@@ -3,14 +3,16 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:intl/intl.dart';
 
 class ConvocationScreen extends StatefulWidget {
-  const ConvocationScreen({Key? key}) : super(key: key);
+  final String eleveId;
+
+  const ConvocationScreen({super.key, required this.eleveId});
 
   @override
   State<ConvocationScreen> createState() => _ConvocationScreenState();
 }
 
 class _ConvocationScreenState extends State<ConvocationScreen> {
-  final CollectionReference convocations = FirebaseFirestore.instance.collection('convocation');
+  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   final ScrollController _scrollController = ScrollController();
   bool _isLoading = true;
 
@@ -36,20 +38,6 @@ class _ConvocationScreenState extends State<ConvocationScreen> {
     }
   }
 
-  // Fonction pour formater la date
-  String formatDate(dynamic timestamp) {
-    if (timestamp == null) return 'Date non précisée';
-    
-    try {
-      DateTime date = timestamp is Timestamp 
-          ? timestamp.toDate() 
-          : DateTime.parse(timestamp.toString());
-      return DateFormat('dd/MM/yyyy').format(date);
-    } catch (e) {
-      return 'Date invalide';
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -62,7 +50,7 @@ class _ConvocationScreenState extends State<ConvocationScreen> {
               gradient: LinearGradient(
                 begin: Alignment.topCenter,
                 end: Alignment.bottomCenter,
-                colors: [Color(0xFF4285F4), Color(0xFF5B6AF0)],
+                colors: [Color.fromARGB(255, 40, 141, 0), Color.fromARGB(255, 63, 136, 3)],
               ),
             ),
             child: SafeArea(
@@ -102,7 +90,7 @@ class _ConvocationScreenState extends State<ConvocationScreen> {
           Expanded(
             child: _isLoading
                 ? _buildLoadingContent()
-                : _buildConvocationList(),
+                : _buildConvocationsList(),
           ),
         ],
       ),
@@ -114,7 +102,7 @@ class _ConvocationScreenState extends State<ConvocationScreen> {
       padding: EdgeInsets.all(16),
       child: ListView.builder(
         physics: BouncingScrollPhysics(),
-        itemCount: 5, // Placeholders pour les convocations
+        itemCount: 3, // Placeholders pour les convocations
         itemBuilder: (context, index) {
           return Card(
             elevation: 2,
@@ -124,40 +112,56 @@ class _ConvocationScreenState extends State<ConvocationScreen> {
             ),
             child: Container(
               padding: EdgeInsets.all(20),
-              child: Row(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Container(
-                    padding: EdgeInsets.all(12),
-                    decoration: BoxDecoration(
-                      color: Colors.grey.withOpacity(0.1),
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    width: 54,
-                    height: 54,
-                  ),
-                  SizedBox(width: 16),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Container(
-                          height: 16,
-                          width: 200,
+                  Row(
+                    children: [
+                      Container(
+                        padding: EdgeInsets.all(10),
+                        decoration: BoxDecoration(
+                          color: Colors.grey.withOpacity(0.1),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        width: 40,
+                        height: 40,
+                      ),
+                      SizedBox(width: 12),
+                      Expanded(
+                        child: Container(
+                          height: 18,
                           decoration: BoxDecoration(
                             color: Colors.grey.withOpacity(0.2),
                             borderRadius: BorderRadius.circular(4),
                           ),
                         ),
-                        SizedBox(height: 8),
-                        Container(
-                          height: 12,
-                          width: 120,
-                          decoration: BoxDecoration(
-                            color: Colors.grey.withOpacity(0.1),
-                            borderRadius: BorderRadius.circular(4),
-                          ),
-                        ),
-                      ],
+                      ),
+                    ],
+                  ),
+                  SizedBox(height: 16),
+                  Container(
+                    height: 14,
+                    width: 200,
+                    decoration: BoxDecoration(
+                      color: Colors.grey.withOpacity(0.15),
+                      borderRadius: BorderRadius.circular(4),
+                    ),
+                  ),
+                  SizedBox(height: 8),
+                  Container(
+                    height: 14,
+                    width: 150,
+                    decoration: BoxDecoration(
+                      color: Colors.grey.withOpacity(0.15),
+                      borderRadius: BorderRadius.circular(4),
+                    ),
+                  ),
+                  SizedBox(height: 16),
+                  Container(
+                    height: 60,
+                    decoration: BoxDecoration(
+                      color: Colors.grey.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(4),
                     ),
                   ),
                 ],
@@ -169,66 +173,40 @@ class _ConvocationScreenState extends State<ConvocationScreen> {
     );
   }
 
-  Widget _buildConvocationList() {
+  Widget _buildConvocationsList() {
     return StreamBuilder<QuerySnapshot>(
-      stream: convocations.snapshots(),
+      stream: _firestore
+          .collection('convocation')
+          .where('eleveId', isEqualTo: widget.eleveId)
+          .snapshots(),
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
           return _buildLoadingContent();
         }
         
         if (snapshot.hasError) {
-          return Center(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(Icons.error_outline, 
-                     size: 64, 
-                     color: Colors.red.withOpacity(0.6)),
-                SizedBox(height: 16),
-                Text(
-                  "Erreur de chargement des données",
-                  style: TextStyle(
-                    fontSize: 18,
-                    color: Colors.grey[700],
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-              ],
-            ),
-          );
+          return _buildErrorWidget(snapshot.error.toString());
         }
         
         if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
-          return Center(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(Icons.notifications_off, 
-                     size: 64, 
-                     color: Color(0xFF4285F4).withOpacity(0.5)),
-                SizedBox(height: 16),
-                Text(
-                  "Aucune remarque disponible",
-                  style: TextStyle(
-                    fontSize: 18,
-                    color: Colors.grey[700],
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-              ],
-            ),
-          );
+          return _buildEmptyWidget();
         }
-        
+
+        // Tri des documents par timestamp (du plus récent au plus ancien)
+        final sortedDocs = snapshot.data!.docs.toList()
+          ..sort((a, b) {
+            Timestamp ta = a['timestamp'];
+            Timestamp tb = b['timestamp'];
+            return tb.compareTo(ta); // Ordre décroissant
+          });
+
         return ListView.builder(
           controller: _scrollController,
           padding: EdgeInsets.all(16),
           physics: BouncingScrollPhysics(),
-          itemCount: snapshot.data!.docs.length,
+          itemCount: sortedDocs.length,
           itemBuilder: (context, index) {
-            var doc = snapshot.data!.docs[index];
-            Map<String, dynamic> data = doc.data() as Map<String, dynamic>;
+            var data = sortedDocs[index].data() as Map<String, dynamic>;
             return _buildConvocationCard(data);
           },
         );
@@ -237,11 +215,25 @@ class _ConvocationScreenState extends State<ConvocationScreen> {
   }
 
   Widget _buildConvocationCard(Map<String, dynamic> data) {
-    // Déterminer le type/catégorie de la remarque
-    final String category = data['type'] ?? 'standard';
-    final Color cardColor = _getCategoryColor(category);
-    final String teacherName = data['teacherName'] ?? 'Enseignant';
+    DateTime date = _parseDate(data);
+    String classeId = data['classeId'] ?? 'Non spécifié';
+    String eleveId = data['eleveId'] ?? 'ID non spécifié';
     
+    // Gestion du message (peut être une chaîne ou une liste)
+    String message;
+    if (data['message'] is String) {
+      message = data['message'];
+    } else if (data['message'] is List) {
+      List<dynamic> messagesList = data['message'];
+      message = messagesList.map((e) => '• $e').join('\n');
+    } else {
+      message = 'Aucune remarque disponible.';
+    }
+
+    // Déterminer le type/sévérité de la convocation
+    String type = 'standard'; // Type par défaut pour les convocations
+    bool isImportant = data['important'] == true || data['urgent'] == true;
+        
     return Card(
       elevation: 2,
       margin: EdgeInsets.only(bottom: 16),
@@ -249,40 +241,34 @@ class _ConvocationScreenState extends State<ConvocationScreen> {
         borderRadius: BorderRadius.circular(15),
       ),
       child: ExpansionTile(
-        iconColor: cardColor,
+        iconColor: _getTypeColor(type),
         collapsedIconColor: Colors.grey,
         leading: Container(
           padding: EdgeInsets.all(10),
           decoration: BoxDecoration(
-            color: cardColor.withOpacity(0.1),
+            color: _getTypeColor(type).withOpacity(0.1),
             borderRadius: BorderRadius.circular(12),
           ),
           child: Icon(
-            _getCategoryIcon(category),
-            size: 28,
-            color: cardColor,
+            _getTypeIcon(type),
+            size: 26,
+            color: _getTypeColor(type),
           ),
         ),
-        title: Text(
-          data['title'] ?? 'Remarque de $teacherName',
-          style: TextStyle(
-            fontWeight: FontWeight.w600,
-            fontSize: 16,
-          ),
-        ),
-        subtitle: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+        title: Row(
           children: [
-            Text(
-              'Date: ${formatDate(data['timestamp'])}',
-              style: TextStyle(
-                color: Colors.grey[600],
-                fontSize: 13,
+            Expanded(
+              child: Text(
+                DateFormat('dd/MM/yyyy').format(date),
+                style: TextStyle(
+                  fontWeight: FontWeight.w600,
+                  fontSize: 16,
+                ),
               ),
             ),
-            if (data['importance'] != null && data['importance'] == 'high')
+            if (isImportant)
               Container(
-                margin: EdgeInsets.only(top: 4),
+                margin: EdgeInsets.only(left: 8),
                 padding: EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                 decoration: BoxDecoration(
                   color: Colors.red[100],
@@ -299,34 +285,66 @@ class _ConvocationScreenState extends State<ConvocationScreen> {
               ),
           ],
         ),
+        subtitle: Text(
+          'Élève: $eleveId',
+          style: TextStyle(
+            color: Colors.grey[700],
+            fontSize: 14,
+          ),
+        ),
         children: [
           Padding(
             padding: EdgeInsets.all(16),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                _buildDetailItem(
-                  'Message:',
-                  data['message'] ?? 'Aucun message',
-                  Icons.message,
+                _buildInfoSection(
+                  'Informations:',
+                  [
+                    _buildInfoRow('Date complète:', DateFormat('dd/MM/yyyy HH:mm').format(date)),
+                    _buildInfoRow('Classe:', classeId),
+                    _buildInfoRow('Élève ID:', eleveId),
+                  ],
                 ),
-                SizedBox(height: 12),
-                _buildDetailItem(
-                  'Classe:',
-                  data['className'] ?? data['classId'] ?? 'Non précisé',
-                  Icons.class_,
+                SizedBox(height: 16),
+                _buildInfoSection(
+                  'Message de remarque:',
+                  [
+                    Container(
+                      padding: EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: Colors.grey[50],
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: Colors.grey[200]!),
+                      ),
+                      child: Text(
+                        message,
+                        style: TextStyle(
+                          color: Colors.grey[800],
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
-                if (data['response'] != null) ...[
-                  SizedBox(height: 12),
-                  _buildDetailItem(
-                    'Réponse:',
-                    data['response'],
-                    Icons.reply,
+                if (data['motif'] != null) ...[
+                  SizedBox(height: 16),
+                  _buildInfoSection(
+                    'Motif:',
+                    [
+                      Text(
+                        data['motif'].toString(),
+                        style: TextStyle(
+                          fontWeight: FontWeight.w500,
+                          color: _getTypeColor(type),
+                        ),
+                      ),
+                    ],
                   ),
                 ],
-                SizedBox(height: 16),
-                if (data['requiresParentSignature'] == true) 
+                if (data['signature'] == true || data['requiresParentSignature'] == true) ...[
+                  SizedBox(height: 16),
                   _buildSignatureRequired(),
+                ],
               ],
             ),
           ),
@@ -335,36 +353,48 @@ class _ConvocationScreenState extends State<ConvocationScreen> {
     );
   }
 
-  Widget _buildDetailItem(String label, String content, IconData icon) {
-    return Row(
+  Widget _buildInfoSection(String title, List<Widget> children) {
+    return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Icon(icon, size: 18, color: Colors.grey[600]),
-        SizedBox(width: 8),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                label,
-                style: TextStyle(
-                  fontWeight: FontWeight.bold,
-                  color: Colors.grey[800],
-                  fontSize: 14,
-                ),
-              ),
-              SizedBox(height: 4),
-              Text(
-                content,
-                style: TextStyle(
-                  color: Colors.grey[700],
-                  fontSize: 14,
-                ),
-              ),
-            ],
+        Text(
+          title,
+          style: TextStyle(
+            fontWeight: FontWeight.bold,
+            fontSize: 16,
+            color: Colors.grey[800],
           ),
         ),
+        SizedBox(height: 8),
+        ...children,
       ],
+    );
+  }
+
+  Widget _buildInfoRow(String label, String value) {
+    return Padding(
+      padding: EdgeInsets.only(bottom: 6),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            label,
+            style: TextStyle(
+              fontWeight: FontWeight.w500,
+              color: Colors.grey[700],
+            ),
+          ),
+          SizedBox(width: 4),
+          Expanded(
+            child: Text(
+              value,
+              style: TextStyle(
+                color: Colors.grey[900],
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 
@@ -394,27 +424,102 @@ class _ConvocationScreenState extends State<ConvocationScreen> {
     );
   }
 
-  Color _getCategoryColor(String category) {
-    final Map<String, Color> colors = {
-      'comportement': Colors.red[700]!,
-      'devoir': Colors.blue[700]!,
-      'absence': Colors.orange[700]!,
-      'félicitation': Colors.green[700]!,
-      'standard': Color(0xFF4285F4),
-    };
-    
-    return colors[category.toLowerCase()] ?? Color(0xFF4285F4);
+  DateTime _parseDate(Map<String, dynamic> data) {
+    Timestamp? timestamp = data['timestamp'];
+    if (timestamp != null) {
+      return timestamp.toDate();
+    } else {
+      return DateTime.now();
+    }
   }
 
-  IconData _getCategoryIcon(String category) {
-    final Map<String, IconData> icons = {
-      'comportement': Icons.warning,
-      'devoir': Icons.assignment,
-      'absence': Icons.timer_off,
-      'félicitation': Icons.emoji_events,
-      'standard': Icons.notifications,
+  Widget _buildErrorWidget(String message) {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(Icons.error_outline, 
+               size: 64, 
+               color: Colors.red.withOpacity(0.6)),
+          SizedBox(height: 16),
+          Text(
+            'Erreur de chargement',
+            style: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+              color: Colors.grey[800],
+            ),
+          ),
+          SizedBox(height: 8),
+          Padding(
+            padding: EdgeInsets.symmetric(horizontal: 32),
+            child: Text(
+              message,
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                color: Colors.grey[600],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildEmptyWidget() {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(Icons.notifications_off, 
+               size: 64, 
+               color: Color(0xFF4285F4).withOpacity(0.5)),
+          SizedBox(height: 16),
+          Text(
+            "Aucune convocation trouvée",
+            style: TextStyle(
+              fontSize: 18,
+              color: Colors.grey[700],
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+          SizedBox(height: 8),
+          Text(
+            "Vous n'avez pas encore reçu de convocation",
+            style: TextStyle(
+              color: Colors.grey[500],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Color _getTypeColor(String type) {
+    final Map<String, Color> colors = {
+      'standard': Color(0xFF4285F4),
+      'information': Colors.blue[600]!,
+      'avertissement': Colors.orange[700]!,
+      'felicitation': Colors.green[600]!,
+      'grave': Colors.red[700]!,
+      'urgent': Colors.red[700]!,
+      'convocation': Colors.purple[600]!,
     };
     
-    return icons[category.toLowerCase()] ?? Icons.notifications;
+    return colors[type.toLowerCase()] ?? Color(0xFF4285F4);
+  }
+
+  IconData _getTypeIcon(String type) {
+    final Map<String, IconData> icons = {
+      'standard': Icons.mail_outline,
+      'information': Icons.info_outline,
+      'avertissement': Icons.warning_amber,
+      'felicitation': Icons.emoji_events,
+      'grave': Icons.priority_high,
+      'urgent': Icons.notification_important,
+      'convocation': Icons.event_note,
+    };
+    
+    return icons[type.toLowerCase()] ?? Icons.mail_outline;
   }
 }

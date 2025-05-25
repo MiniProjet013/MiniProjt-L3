@@ -87,19 +87,103 @@ class _ModifierClassesScreenState extends State<ModifierClassesScreen> {
     }
   }
 
-  // Supprimer une classe depuis Firestore
-  Future<void> _deleteClass(String classId) async {
+  // Archiver et supprimer une classe
+  Future<void> _archiveAndDeleteClass(String classId) async {
     try {
+      // 1. Récupérer les données de la classe
+      DocumentSnapshot classDoc = await _db.collection('classes').doc(classId).get();
+      
+      if (!classDoc.exists) {
+        throw Exception("Classe non trouvée");
+      }
+
+      Map<String, dynamic> classData = classDoc.data() as Map<String, dynamic>;
+      
+      // 2. Ajouter les métadonnées d'archivage
+      classData['archivedAt'] = FieldValue.serverTimestamp();
+      classData['archivedBy'] = 'system'; // Vous pouvez remplacer par l'ID de l'utilisateur connecté
+      classData['originalId'] = classId;
+      
+      // 3. Sauvegarder dans archives_classes
+      await _db.collection('archives_classes').add(classData);
+      
+      // 4. Supprimer de la collection classes
       await _db.collection('classes').doc(classId).delete();
+      
+      // 5. Supprimer de toutes les autres collections liées (si nécessaire)
+      // Par exemple, supprimer les étudiants de cette classe
+      QuerySnapshot studentsSnapshot = await _db.collection('students')
+          .where('classeId', isEqualTo: classId)
+          .get();
+      
+      // Archiver les étudiants aussi
+      WriteBatch batch = _db.batch();
+      for (var studentDoc in studentsSnapshot.docs) {
+        Map<String, dynamic> studentData = studentDoc.data() as Map<String, dynamic>;
+        studentData['archivedAt'] = FieldValue.serverTimestamp();
+        studentData['archivedBy'] = 'system';
+        studentData['originalId'] = studentDoc.id;
+        studentData['archivedReason'] = 'Classe supprimée';
+        
+        // Ajouter à archives_students
+        batch.set(_db.collection('archives_students').doc(), studentData);
+        
+        // Supprimer de students
+        batch.delete(studentDoc.reference);
+      }
+      
+      // Supprimer les emplois du temps liés à cette classe
+      QuerySnapshot schedulesSnapshot = await _db.collection('schedules')
+          .where('classeId', isEqualTo: classId)
+          .get();
+      
+      for (var scheduleDoc in schedulesSnapshot.docs) {
+        Map<String, dynamic> scheduleData = scheduleDoc.data() as Map<String, dynamic>;
+        scheduleData['archivedAt'] = FieldValue.serverTimestamp();
+        scheduleData['archivedBy'] = 'system';
+        scheduleData['originalId'] = scheduleDoc.id;
+        scheduleData['archivedReason'] = 'Classe supprimée';
+        
+        // Ajouter à archives_schedules
+        batch.set(_db.collection('archives_schedules').doc(), scheduleData);
+        
+        // Supprimer de schedules
+        batch.delete(scheduleDoc.reference);
+      }
+      
+      // Supprimer les notes liées à cette classe
+      QuerySnapshot gradesSnapshot = await _db.collection('grades')
+          .where('classeId', isEqualTo: classId)
+          .get();
+      
+      for (var gradeDoc in gradesSnapshot.docs) {
+        Map<String, dynamic> gradeData = gradeDoc.data() as Map<String, dynamic>;
+        gradeData['archivedAt'] = FieldValue.serverTimestamp();
+        gradeData['archivedBy'] = 'system';
+        gradeData['originalId'] = gradeDoc.id;
+        gradeData['archivedReason'] = 'Classe supprimée';
+        
+        // Ajouter à archives_grades
+        batch.set(_db.collection('archives_grades').doc(), gradeData);
+        
+        // Supprimer de grades
+        batch.delete(gradeDoc.reference);
+      }
+      
+      // Exécuter toutes les opérations en lot
+      await batch.commit();
+      
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: Text("✅ Classe supprimée avec succès!"),
+        content: Text("✅ Classe archivée et supprimée avec succès!"),
         backgroundColor: Colors.green,
       ));
+      
       _loadClasses();
+      
     } catch (e) {
-      print("❌ Error deleting class: $e");
+      print("❌ Error archiving and deleting class: $e");
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: Text("❌ Erreur lors de la suppression de la classe!"),
+        content: Text("❌ Erreur lors de l'archivage de la classe: $e"),
         backgroundColor: Colors.red,
       ));
     }
@@ -114,7 +198,7 @@ class _ModifierClassesScreenState extends State<ModifierClassesScreen> {
           borderRadius: BorderRadius.circular(15),
         ),
         title: Text(
-          "Confirmation",
+          "Confirmation d'archivage",
           style: TextStyle(
             color: darkColor,
             fontWeight: FontWeight.bold,
@@ -126,19 +210,29 @@ class _ModifierClassesScreenState extends State<ModifierClassesScreen> {
             Container(
               padding: EdgeInsets.all(16),
               decoration: BoxDecoration(
-                color: Colors.red.withOpacity(0.1),
+                color: Colors.orange.withOpacity(0.1),
                 borderRadius: BorderRadius.circular(10),
               ),
               child: Icon(
-                Icons.warning_amber_rounded,
-                color: Colors.red,
+                Icons.archive_outlined,
+                color: Colors.orange,
                 size: 50,
               ),
             ),
             SizedBox(height: 16),
             Text(
-              "Voulez-vous vraiment archiver et supprimer la classe ${classData['numeroClasse']}?",
+              "Voulez-vous vraiment archiver la classe ${classData['numeroClasse']}?",
               style: TextStyle(fontSize: 16),
+              textAlign: TextAlign.center,
+            ),
+            SizedBox(height: 8),
+            Text(
+              "Cette action archivera:\n• La classe\n• Tous les étudiants de cette classe\n• Les emplois du temps\n• Les notes associées",
+              style: TextStyle(
+                fontSize: 14,
+                color: Colors.grey[600],
+                fontStyle: FontStyle.italic,
+              ),
               textAlign: TextAlign.center,
             ),
           ],
@@ -152,29 +246,19 @@ class _ModifierClassesScreenState extends State<ModifierClassesScreen> {
             onPressed: () => Navigator.pop(context),
           ),
           ElevatedButton(
-            onPressed: () async {
-              Navigator.pop(context);
-              await _deleteClass(classData['idClasse']);
-            },
-            child: Text(
-              "Supprimer",
-              style: TextStyle(color: Colors.white),
-            ),
-          ),
-          ElevatedButton(
             style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.red,
+              backgroundColor: Colors.orange,
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(8),
               ),
             ),
             child: Text(
-              "Supprimer",
+              "Archiver",
               style: TextStyle(color: Colors.white),
             ),
             onPressed: () async {
               Navigator.pop(context);
-              await _deleteClass(classData['idClasse']);
+              await _archiveAndDeleteClass(classData['id']);
             },
           ),
         ],
@@ -449,17 +533,17 @@ class _ModifierClassesScreenState extends State<ModifierClassesScreen> {
                                                     },
                                                   ),
                                                 ),
-                                                // Bouton de suppression
+                                                // Bouton d'archivage
                                                 Container(
                                                   height: 36,
                                                   width: 36,
                                                   decoration: BoxDecoration(
-                                                    color: Colors.red.withOpacity(0.1),
+                                                    color: Colors.orange.withOpacity(0.1),
                                                     borderRadius: BorderRadius.circular(8),
                                                   ),
                                                   child: IconButton(
                                                     padding: EdgeInsets.zero,
-                                                    icon: Icon(Icons.delete, size: 18, color: Colors.red),
+                                                    icon: Icon(Icons.archive_outlined, size: 18, color: Colors.orange),
                                                     onPressed: () {
                                                       _showDeleteConfirmation(classData);
                                                     },

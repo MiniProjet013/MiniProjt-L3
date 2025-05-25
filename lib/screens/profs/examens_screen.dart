@@ -83,64 +83,128 @@ class _EvenementsProfState extends State<EvenementsProf> {
   Color _getEventColor(String type) {
     switch (type.toLowerCase()) {
       case 'réunion':
-        return Colors.blue;
+        return Color.fromARGB(255, 1, 110, 5);
       case 'examen':
-        return Colors.red;
+        return Color.fromARGB(255, 218, 64, 3);
       case 'devoir':
         return Colors.purple;
       case 'sortie':
-        return Colors.green;
+        return Color.fromARGB(255, 1, 110, 5);
       case 'vacances':
-        return Colors.orange;
+        return Color.fromARGB(255, 218, 64, 3);
       default:
-        return Colors.teal;
+        return Color.fromARGB(255, 1, 110, 5);
     }
   }
 
   @override
   Widget build(BuildContext context) {
+    final orangeColor = Color.fromARGB(255, 218, 64, 3);
+    final greenColor = Color.fromARGB(255, 1, 110, 5);
+    final lightColor = Color.fromARGB(255, 255, 255, 255);
+
     return Scaffold(
-      backgroundColor: Colors.white,
-      body: Column(
-        children: [
-          // En-tête fixe avec dégradé
-          Container(
-            decoration: const BoxDecoration(
-              gradient: LinearGradient(
-                begin: Alignment.topCenter,
-                end: Alignment.bottomCenter,
-                colors: [Color.fromARGB(255, 1, 110, 5)],
-              ),
-            ),
-            child: SafeArea(
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    IconButton(
-                      icon: const Icon(Icons.arrow_back, color: Colors.white),
-                      onPressed: () => Navigator.pop(context),
-                    ),
-                    const Text(
-                      "ÉVÉNEMENTS",
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontWeight: FontWeight.bold,
-                        fontSize: 20,
-                      ),
-                    ),
-                    const SizedBox(width: 48), // Pour équilibrer le layout
+      backgroundColor: lightColor,
+      body: CustomScrollView(
+        slivers: [
+          // En-tête avec dégradé similaire à la page d'accueil
+          SliverToBoxAdapter(
+            child: Container(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: [
+                    orangeColor.withOpacity(0.8),
+                    greenColor.withOpacity(0.8)
                   ],
+                ),
+              ),
+              child: SafeArea(
+                child: Padding(
+                  padding: const EdgeInsets.all(20.0),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          IconButton(
+                            icon: const Icon(Icons.arrow_back, color: Colors.white),
+                            onPressed: () => Navigator.pop(context),
+                            constraints: BoxConstraints(),
+                            padding: EdgeInsets.zero,
+                          ),
+                          Text(
+                            "ÉVÉNEMENTS",
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontWeight: FontWeight.bold,
+                              fontSize: 20,
+                            ),
+                          ),
+                          Container(
+                            width: 40,
+                            height: 40,
+                            decoration: BoxDecoration(
+                              color: Colors.white.withOpacity(0.2),
+                              shape: BoxShape.circle,
+                            ),
+                            child: Center(
+                              child: Icon(
+                                Icons.event,
+                                color: Colors.white,
+                                size: 20,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                      SizedBox(height: 16),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text(
+                            "Gestion des événements",
+                            style: TextStyle(
+                              color: Colors.white.withOpacity(0.9),
+                              fontSize: 16,
+                            ),
+                          ),
+                          Container(
+                            padding: EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                            decoration: BoxDecoration(
+                              color: Colors.white.withOpacity(0.2),
+                              borderRadius: BorderRadius.circular(20),
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(Icons.calendar_today, color: Colors.white, size: 16),
+                                SizedBox(width: 6),
+                                Text(
+                                  DateFormat("dd/MM/yyyy").format(DateTime.now()),
+                                  style: TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 14,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
                 ),
               ),
             ),
           ),
           
           // Contenu principal
-          Expanded(
+          SliverToBoxAdapter(
             child: Container(
-              color: Colors.white,
+              color: lightColor,
               child: _isLoading 
                 ? _buildLoadingContent() 
                 : _buildMainContent(),
@@ -148,14 +212,14 @@ class _EvenementsProfState extends State<EvenementsProf> {
           ),
         ],
       ),
-      floatingActionButton: FloatingActionButton(
+     /* floatingActionButton: FloatingActionButton(
         onPressed: () {
           // Fonction pour ajouter un nouvel événement
           // Implémentez votre logique ici
         },
-        backgroundColor: const Color(0xFF4CAF50),
-        child: const Icon(Icons.add),
-      ),
+        backgroundColor: orangeColor,
+        child: const Icon(Icons.add, color: Colors.white),
+      ),*/
     );
   }
 
@@ -163,63 +227,70 @@ class _EvenementsProfState extends State<EvenementsProf> {
     return Padding(
       padding: const EdgeInsets.all(16),
       child: ListView.builder(
-        physics: const BouncingScrollPhysics(),
-        itemCount: 5, // Nombre de placeholders
+        shrinkWrap: true,
+        physics: const NeverScrollableScrollPhysics(),
+        itemCount: 5,
         itemBuilder: (context, index) {
-          return Card(
-            elevation: 2,
+          return Container(
             margin: const EdgeInsets.only(bottom: 16),
-            shape: RoundedRectangleBorder(
+            padding: const EdgeInsets.all(20),
+            decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(15),
+              color: Colors.white,
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.grey.withOpacity(0.1),
+                  spreadRadius: 1,
+                  blurRadius: 6,
+                  offset: Offset(0, 3),
+                ),
+              ],
             ),
-            child: Container(
-              padding: const EdgeInsets.all(20),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.all(12),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: Colors.grey.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      width: 54,
+                      height: 54,
+                    ),
+                    const SizedBox(width: 16),
+                    Expanded(
+                      child: Container(
+                        height: 20,
                         decoration: BoxDecoration(
-                          color: Colors.grey.withOpacity(0.1),
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        width: 54,
-                        height: 54,
-                      ),
-                      const SizedBox(width: 16),
-                      Expanded(
-                        child: Container(
-                          height: 20,
-                          decoration: BoxDecoration(
-                            color: Colors.grey.withOpacity(0.2),
-                            borderRadius: BorderRadius.circular(4),
-                          ),
+                          color: Colors.grey.withOpacity(0.2),
+                          borderRadius: BorderRadius.circular(4),
                         ),
                       ),
-                    ],
-                  ),
-                  const SizedBox(height: 16),
-                  Container(
-                    height: 14,
-                    width: 150,
-                    decoration: BoxDecoration(
-                      color: Colors.grey.withOpacity(0.1),
-                      borderRadius: BorderRadius.circular(4),
                     ),
+                  ],
+                ),
+                const SizedBox(height: 16),
+                Container(
+                  height: 14,
+                  width: 150,
+                  decoration: BoxDecoration(
+                    color: Colors.grey.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(4),
                   ),
-                  const SizedBox(height: 8),
-                  Container(
-                    height: 14,
-                    width: 100,
-                    decoration: BoxDecoration(
-                      color: Colors.grey.withOpacity(0.1),
-                      borderRadius: BorderRadius.circular(4),
-                    ),
+                ),
+                const SizedBox(height: 8),
+                Container(
+                  height: 14,
+                  width: 100,
+                  decoration: BoxDecoration(
+                    color: Colors.grey.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(4),
                   ),
-                ],
-              ),
+                ),
+              ],
             ),
           );
         },
@@ -229,31 +300,55 @@ class _EvenementsProfState extends State<EvenementsProf> {
 
   Widget _buildMainContent() {
     if (_evenements.isEmpty) {
-      return Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: const [
-            Icon(Icons.event_busy, size: 80, color: Colors.grey),
-            SizedBox(height: 16),
-            Text(
-              "Aucun événement disponible",
-              style: TextStyle(
-                fontSize: 18,
-                color: Colors.grey,
-                fontWeight: FontWeight.w500,
+      return Container(
+        height: MediaQuery.of(context).size.height * 0.5,
+        child: Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Container(
+                width: 80,
+                height: 80,
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: [
+                      Color.fromARGB(255, 218, 64, 3).withOpacity(0.2),
+                      Color.fromARGB(255, 1, 110, 5).withOpacity(0.2),
+                    ],
+                  ),
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: Icon(
+                  Icons.event_busy, 
+                  size: 40, 
+                  color: Color.fromARGB(255, 1, 110, 5)
+                ),
               ),
-            ),
-          ],
+              SizedBox(height: 16),
+              Text(
+                "Aucun événement disponible",
+                style: TextStyle(
+                  fontSize: 18,
+                  color: Colors.grey,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ],
+          ),
         ),
       );
     }
 
     return RefreshIndicator(
       onRefresh: _fetchEvenements,
+      color: Color.fromARGB(255, 1, 110, 5),
       child: ListView.builder(
         controller: _scrollController,
+        shrinkWrap: true,
+        physics: const NeverScrollableScrollPhysics(),
         padding: const EdgeInsets.all(16),
-        physics: const BouncingScrollPhysics(),
         itemCount: _evenements.length,
         itemBuilder: (context, index) {
           final evenement = _evenements[index];
@@ -265,102 +360,133 @@ class _EvenementsProfState extends State<EvenementsProf> {
           IconData eventIcon = _getEventIcon(type);
           Color eventColor = _getEventColor(type);
 
-          return Card(
-            elevation: 2,
+          return Container(
             margin: const EdgeInsets.only(bottom: 16),
-            shape: RoundedRectangleBorder(
+            decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(15),
+              color: Colors.white,
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.grey.withOpacity(0.1),
+                  spreadRadius: 1,
+                  blurRadius: 6,
+                  offset: Offset(0, 3),
+                ),
+              ],
             ),
-            child: InkWell(
-              borderRadius: BorderRadius.circular(15),
-              onTap: () {
-                // Détails de l'événement
-                _showEventDetails(context, evenement, eventDate);
-              },
-              child: Container(
-                padding: const EdgeInsets.all(20),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        Container(
-                          padding: const EdgeInsets.all(12),
-                          decoration: BoxDecoration(
-                            color: eventColor.withOpacity(0.1),
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          child: Icon(
-                            eventIcon,
-                            size: 30,
-                            color: eventColor,
-                          ),
-                        ),
-                        const SizedBox(width: 16),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                evenement['description'] ?? 'Sans description',
-                                style: const TextStyle(
-                                  fontWeight: FontWeight.w600,
-                                  fontSize: 16,
-                                ),
-                                maxLines: 2,
-                                overflow: TextOverflow.ellipsis,
+            child: Material(
+              color: Colors.transparent,
+              child: InkWell(
+                borderRadius: BorderRadius.circular(15),
+                onTap: () {
+                  _showEventDetails(context, evenement, eventDate);
+                },
+                splashColor: eventColor.withOpacity(0.2),
+                highlightColor: Colors.transparent,
+                child: Container(
+                  padding: const EdgeInsets.all(20),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Container(
+                            width: 54,
+                            height: 54,
+                            decoration: BoxDecoration(
+                              gradient: LinearGradient(
+                                begin: Alignment.topLeft,
+                                end: Alignment.bottomRight,
+                                colors: [
+                                  eventColor.withOpacity(0.2),
+                                  eventColor.withOpacity(0.4),
+                                ],
                               ),
-                              const SizedBox(height: 4),
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: Icon(
+                              eventIcon,
+                              size: 24,
+                              color: eventColor,
+                            ),
+                          ),
+                          const SizedBox(width: 16),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  evenement['description'] ?? 'Sans description',
+                                  style: const TextStyle(
+                                    fontWeight: FontWeight.w600,
+                                    fontSize: 16,
+                                    color: Color(0xFF333333),
+                                  ),
+                                  maxLines: 2,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                                const SizedBox(height: 4),
+                                Container(
+                                  padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                  decoration: BoxDecoration(
+                                    color: eventColor.withOpacity(0.1),
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
+                                  child: Text(
+                                    type,
+                                    style: TextStyle(
+                                      color: eventColor,
+                                      fontWeight: FontWeight.w500,
+                                      fontSize: 12,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 16),
+                      Container(
+                        height: 1,
+                        color: Colors.grey.withOpacity(0.1),
+                      ),
+                      const SizedBox(height: 12),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Row(
+                            children: [
+                              Icon(Icons.calendar_today, 
+                                  size: 16, color: Colors.grey[600]),
+                              const SizedBox(width: 6),
                               Text(
-                                type,
+                                formattedDate,
                                 style: TextStyle(
-                                  color: eventColor,
-                                  fontWeight: FontWeight.w500,
+                                  color: Colors.grey[600],
                                   fontSize: 14,
                                 ),
                               ),
                             ],
                           ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 12),
-                    const Divider(height: 1),
-                    const SizedBox(height: 12),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Row(
-                          children: [
-                            const Icon(Icons.calendar_today, 
-                                size: 16, color: Colors.grey),
-                            const SizedBox(width: 4),
-                            Text(
-                              formattedDate,
-                              style: const TextStyle(
-                                color: Colors.grey,
-                                fontSize: 14,
+                          Row(
+                            children: [
+                              Icon(Icons.access_time, 
+                                  size: 16, color: Colors.grey[600]),
+                              const SizedBox(width: 6),
+                              Text(
+                                "Il y a $formattedTime",
+                                style: TextStyle(
+                                  color: Colors.grey[600],
+                                  fontSize: 14,
+                                ),
                               ),
-                            ),
-                          ],
-                        ),
-                        Row(
-                          children: [
-                            const Icon(Icons.access_time, 
-                                size: 16, color: Colors.grey),
-                            const SizedBox(width: 4),
-                            Text(
-                              "Il y a $formattedTime",
-                              style: const TextStyle(
-                                color: Colors.grey,
-                                fontSize: 14,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ],
-                    ),
-                  ],
+                            ],
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
                 ),
               ),
             ),
@@ -395,9 +521,12 @@ class _EvenementsProfState extends State<EvenementsProf> {
             Container(
               decoration: BoxDecoration(
                 gradient: LinearGradient(
-                  begin: Alignment.topCenter,
-                  end: Alignment.bottomCenter,
-                  colors: [eventColor, eventColor.withOpacity(0.7)],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: [
+                    eventColor.withOpacity(0.8),
+                    eventColor.withOpacity(0.6),
+                  ],
                 ),
                 borderRadius: const BorderRadius.only(
                   topLeft: Radius.circular(20),
@@ -411,9 +540,14 @@ class _EvenementsProfState extends State<EvenementsProf> {
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      CircleAvatar(
-                        backgroundColor: Colors.white,
-                        child: Icon(eventIcon, color: eventColor),
+                      Container(
+                        width: 50,
+                        height: 50,
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          shape: BoxShape.circle,
+                        ),
+                        child: Icon(eventIcon, color: eventColor, size: 24),
                       ),
                       IconButton(
                         icon: const Icon(Icons.close, color: Colors.white),
@@ -431,11 +565,19 @@ class _EvenementsProfState extends State<EvenementsProf> {
                     ),
                   ),
                   const SizedBox(height: 8),
-                  Text(
-                    type,
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 16,
+                  Container(
+                    padding: EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withOpacity(0.2),
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: Text(
+                      type,
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 14,
+                        fontWeight: FontWeight.w500,
+                      ),
                     ),
                   ),
                 ],
@@ -464,6 +606,7 @@ class _EvenementsProfState extends State<EvenementsProf> {
                       style: TextStyle(
                         fontWeight: FontWeight.bold,
                         fontSize: 18,
+                        color: Color(0xFF333333),
                       ),
                     ),
                     const SizedBox(height: 8),
@@ -474,6 +617,7 @@ class _EvenementsProfState extends State<EvenementsProf> {
                       style: const TextStyle(
                         fontSize: 16,
                         height: 1.5,
+                        color: Color(0xFF333333),
                       ),
                     ),
                   ],
@@ -492,27 +636,38 @@ class _EvenementsProfState extends State<EvenementsProf> {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(icon, size: 20, color: Colors.grey[700]),
+          Container(
+            width: 32,
+            height: 32,
+            decoration: BoxDecoration(
+              color: Color.fromARGB(255, 1, 110, 5).withOpacity(0.1),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Icon(icon, size: 18, color: Color.fromARGB(255, 1, 110, 5)),
+          ),
           const SizedBox(width: 12),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                label,
-                style: TextStyle(
-                  fontSize: 14,
-                  color: Colors.grey[600],
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  label,
+                  style: TextStyle(
+                    fontSize: 14,
+                    color: Colors.grey[600],
+                  ),
                 ),
-              ),
-              const SizedBox(height: 2),
-              Text(
-                value,
-                style: const TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w500,
+                const SizedBox(height: 2),
+                Text(
+                  value,
+                  style: const TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w500,
+                    color: Color(0xFF333333),
+                  ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         ],
       ),

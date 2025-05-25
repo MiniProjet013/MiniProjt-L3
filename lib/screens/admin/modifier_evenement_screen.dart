@@ -160,48 +160,82 @@ class _ModifierEvenementScreenState extends State<ModifierEvenementScreen> {
 
       // Mettre à jour l'événement principal
       await evenementsCollection.doc(widget.eventId).update(eventData);
+      
+      print("✅ Événement principal mis à jour avec succès");
 
-      // Mettre à jour l'événement dans toutes les collections associées
-      final QuerySnapshot userEventsSnapshot = await FirebaseFirestore.instance
-          .collection('usersEvents')
-          .where('eventId', isEqualTo: widget.eventId)
-          .get();
+      // Essayer de mettre à jour l'événement dans les collections associées (de manière optionnelle)
+      try {
+        final QuerySnapshot userEventsSnapshot = await FirebaseFirestore.instance
+            .collection('usersEvents')
+            .where('eventId', isEqualTo: widget.eventId)
+            .get();
+            
+        print("🔍 Nombre de documents usersEvents trouvés: ${userEventsSnapshot.docs.length}");
+
+        if (userEventsSnapshot.docs.isNotEmpty) {
+          // Mettre à jour en batch pour plus d'efficacité
+          WriteBatch batch = FirebaseFirestore.instance.batch();
           
-      // Mettre à jour en batch pour plus d'efficacité
-      WriteBatch batch = FirebaseFirestore.instance.batch();
-      
-      userEventsSnapshot.docs.forEach((doc) {
-        batch.update(doc.reference, {
-          'eventData': {
-            'type': selectedType,
-            'date': Timestamp.fromDate(eventDateTime),
-            'description': descriptionController.text,
+          for (DocumentSnapshot doc in userEventsSnapshot.docs) {
+            batch.update(doc.reference, {
+              'eventData': {
+                'type': selectedType,
+                'date': Timestamp.fromDate(eventDateTime),
+                'description': descriptionController.text,
+                'dateModification': Timestamp.now(),
+              }
+            });
           }
-        });
-      });
-      
-      // Exécuter le batch
-      if (userEventsSnapshot.docs.isNotEmpty) {
-        await batch.commit();
+          
+          // Exécuter le batch
+          await batch.commit();
+          print("✅ Événements associés mis à jour avec succès");
+        } else {
+          print("ℹ️ Aucun événement associé à mettre à jour");
+        }
+      } catch (e) {
+        // Si la mise à jour des événements associés échoue, on continue quand même
+        print("⚠️ Erreur lors de la mise à jour des événements associés: $e");
+        // Mais on ne fait pas échouer l'opération principale
       }
 
       // Afficher un message de succès
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("✅ Événement mis à jour avec succès !"), backgroundColor: greenColor),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text("✅ Événement mis à jour avec succès !"), 
+            backgroundColor: greenColor,
+            duration: Duration(seconds: 2),
+          ),
+        );
 
-      // Retourner à l'écran précédent avec un résultat
-      Navigator.pop(context, true);
+        // Attendre un peu avant de fermer l'écran pour que l'utilisateur voie le message
+        await Future.delayed(Duration(milliseconds: 500));
+        
+        // Retourner à l'écran précédent avec un résultat
+        Navigator.pop(context, true);
+      }
+      
     } catch (e) {
+      print("❌ Erreur lors de la mise à jour: $e");
+      
       // Gérer les erreurs
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("❌ Erreur lors de la mise à jour: ${e.toString()}"), backgroundColor: Colors.red),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text("❌ Erreur lors de la mise à jour: ${e.toString()}"), 
+            backgroundColor: Colors.red,
+            duration: Duration(seconds: 3),
+          ),
+        );
+      }
     } finally {
       // Désactiver l'indicateur de chargement
-      setState(() {
-        isSaving = false;
-      });
+      if (mounted) {
+        setState(() {
+          isSaving = false;
+        });
+      }
     }
   }
 

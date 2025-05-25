@@ -24,6 +24,12 @@ class _AbsenceDetailsScreenState extends State<AbsenceDetailsScreen> {
   List<Map<String, dynamic>> students = [];
   Map<String, bool> absences = {};
   bool isLoading = true;
+  
+  // Couleurs pour correspondre au style de la gestion des absences
+  final Color orangeColor = Color.fromARGB(255, 218, 64, 3);
+  final Color greenColor = Color.fromARGB(255, 1, 110, 5);
+  final Color lightColor = Color.fromARGB(255, 255, 255, 255);
+  final Color darkColor = Color(0xFF333333);
 
   @override
   void initState() {
@@ -32,8 +38,6 @@ class _AbsenceDetailsScreenState extends State<AbsenceDetailsScreen> {
   }
 
   // Charger les élèves de la classe sélectionnée depuis Firebase
-  // Correction de la méthode _loadStudentsFromClass dans AbsenceDetailsScreen
-
   Future<void> _loadStudentsFromClass() async {
     setState(() {
       isLoading = true;
@@ -41,7 +45,6 @@ class _AbsenceDetailsScreenState extends State<AbsenceDetailsScreen> {
 
     try {
       // Récupérer tous les élèves qui appartiennent à la classe sélectionnée
-      // CORRECTION: Utiliser le champ correct selon la structure Firebase
       QuerySnapshot querySnapshot = await FirebaseFirestore.instance
           .collection('eleves')
           .where('classeId', isEqualTo: widget.selectedClass)
@@ -61,8 +64,7 @@ class _AbsenceDetailsScreenState extends State<AbsenceDetailsScreen> {
             .where('classeID', isEqualTo: widget.selectedClass)
             .get();
 
-        print(
-            "Nouvelle tentative, élèves trouvés: ${querySnapshot.docs.length}");
+        print("Nouvelle tentative, élèves trouvés: ${querySnapshot.docs.length}");
       }
 
       // Si toujours aucun résultat, essayer une requête sans filtrage
@@ -102,8 +104,9 @@ class _AbsenceDetailsScreenState extends State<AbsenceDetailsScreen> {
       });
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-            content:
-                Text("Erreur: Impossible de charger les élèves. Détails: $e")),
+          content: Text("Erreur: Impossible de charger les élèves. Détails: $e"),
+          backgroundColor: Colors.red,
+        ),
       );
     }
   }
@@ -150,7 +153,10 @@ class _AbsenceDetailsScreenState extends State<AbsenceDetailsScreen> {
       await Future.wait(saveTasks);
 
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("Absences enregistrées avec succès!")),
+        SnackBar(
+          content: Text("✅ Absences enregistrées avec succès!"),
+          backgroundColor: greenColor,
+        ),
       );
 
       // Revenir à l'écran précédent
@@ -159,89 +165,387 @@ class _AbsenceDetailsScreenState extends State<AbsenceDetailsScreen> {
       print("Erreur lors de l'enregistrement des absences: $e");
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-            content: Text("Erreur: Impossible d'enregistrer les absences")),
+          content: Text("❌ Erreur: Impossible d'enregistrer les absences"),
+          backgroundColor: Colors.red,
+        ),
       );
     }
+  }
+
+  // Widget pour afficher les informations de session
+  Widget _buildSessionInfoCard() {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.grey.withOpacity(0.1),
+            spreadRadius: 1,
+            blurRadius: 6,
+            offset: Offset(0, 3),
+          ),
+        ],
+      ),
+      padding: EdgeInsets.all(20),
+      margin: EdgeInsets.only(bottom: 20),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: orangeColor.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Icon(
+                  Icons.info_outline,
+                  color: orangeColor,
+                  size: 24,
+                ),
+              ),
+              SizedBox(width: 16),
+              Text(
+                "Informations de la séance",
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                  color: darkColor,
+                ),
+              ),
+            ],
+          ),
+          SizedBox(height: 20),
+          _buildInfoRow(Icons.book, "Matière", widget.selectedMatiere),
+          SizedBox(height: 12),
+          _buildInfoRow(Icons.calendar_today, "Date", widget.selectedDate),
+          SizedBox(height: 12),
+          _buildInfoRow(Icons.access_time, "Heure", widget.selectedHeure),
+        ],
+      ),
+    );
+  }
+
+  // Widget pour une ligne d'information
+  Widget _buildInfoRow(IconData icon, String label, String value) {
+    return Row(
+      children: [
+        Icon(icon, color: greenColor, size: 20),
+        SizedBox(width: 12),
+        Text(
+          "$label: ",
+          style: TextStyle(
+            fontSize: 16,
+            fontWeight: FontWeight.w500,
+            color: darkColor.withOpacity(0.7),
+          ),
+        ),
+        Expanded(
+          child: Text(
+            value,
+            style: TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.w600,
+              color: darkColor,
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  // Widget pour la liste des élèves
+  Widget _buildStudentsList() {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.grey.withOpacity(0.1),
+            spreadRadius: 1,
+            blurRadius: 6,
+            offset: Offset(0, 3),
+          ),
+        ],
+      ),
+      padding: EdgeInsets.all(20),
+      margin: EdgeInsets.only(bottom: 20),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: greenColor.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Icon(
+                  Icons.group,
+                  color: greenColor,
+                  size: 24,
+                ),
+              ),
+              SizedBox(width: 16),
+              Text(
+                "Liste des élèves",
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                  color: darkColor,
+                ),
+              ),
+              Spacer(),
+              Container(
+                padding: EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                decoration: BoxDecoration(
+                  color: orangeColor.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: Text(
+                  "${students.length} élèves",
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                    color: orangeColor,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          SizedBox(height: 20),
+          students.isEmpty
+              ? Container(
+                  height: 200,
+                  child: Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(
+                          Icons.group_off,
+                          size: 48,
+                          color: darkColor.withOpacity(0.3),
+                        ),
+                        SizedBox(height: 16),
+                        Text(
+                          "Aucun élève trouvé pour cette classe",
+                          style: TextStyle(
+                            fontSize: 16,
+                            color: darkColor.withOpacity(0.6),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                )
+              : ListView.separated(
+                  shrinkWrap: true,
+                  physics: NeverScrollableScrollPhysics(),
+                  itemCount: students.length,
+                  separatorBuilder: (context, index) => SizedBox(height: 12),
+                  itemBuilder: (context, index) {
+                    final student = students[index];
+                    final studentId = student['id'];
+                    final isAbsent = absences[studentId] ?? false;
+
+                    return Container(
+                      decoration: BoxDecoration(
+                        color: isAbsent 
+                            ? Colors.red.withOpacity(0.05)
+                            : greenColor.withOpacity(0.05),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(
+                          color: isAbsent 
+                              ? Colors.red.withOpacity(0.2)
+                              : greenColor.withOpacity(0.2),
+                          width: 1,
+                        ),
+                      ),
+                      child: ListTile(
+                        contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                        leading: CircleAvatar(
+                          backgroundColor: isAbsent ? Colors.red : greenColor,
+                          child: Text(
+                            "${student['prenom']?[0] ?? ''}${student['nom']?[0] ?? ''}",
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ),
+                        title: Text(
+                          "${student['prenom'] ?? ''} ${student['nom'] ?? ''}",
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w600,
+                            color: darkColor,
+                          ),
+                        ),
+                        subtitle: student['idEleve'] != null
+                            ? Text(
+                                "ID: ${student['idEleve']}",
+                                style: TextStyle(
+                                  fontSize: 14,
+                                  color: darkColor.withOpacity(0.6),
+                                ),
+                              )
+                            : null,
+                        trailing: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Text(
+                              isAbsent ? "Absent" : "Présent",
+                              style: TextStyle(
+                                fontSize: 14,
+                                fontWeight: FontWeight.w600,
+                                color: isAbsent ? Colors.red : greenColor,
+                              ),
+                            ),
+                            SizedBox(width: 8),
+                            Switch(
+                              value: isAbsent,
+                              onChanged: (value) {
+                                setState(() {
+                                  absences[studentId] = value;
+                                });
+                              },
+                              activeColor: Colors.red,
+                              inactiveTrackColor: greenColor.withOpacity(0.3),
+                              inactiveThumbColor: greenColor,
+                            ),
+                          ],
+                        ),
+                      ),
+                    );
+                  },
+                ),
+        ],
+      ),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        backgroundColor: Color.fromARGB(232, 2, 196, 34),
-        title: Text("Détails des absences"),
-      ),
-      body: Padding(
-        padding: EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Informations sur la session
-            Text("📚 Matière: ${widget.selectedMatiere}",
-                style: TextStyle(fontSize: 16)),
-            Text("📅 Date: ${widget.selectedDate}",
-                style: TextStyle(fontSize: 16)),
-            Text("⏰ Heure: ${widget.selectedHeure}",
-                style: TextStyle(fontSize: 16)),
-            SizedBox(height: 20),
-
-            // Liste des élèves
-            Expanded(
-              child: isLoading
-                  ? Center(child: CircularProgressIndicator())
-                  : students.isEmpty
-                      ? Center(
-                          child: Text("Aucun élève trouvé pour cette classe",
-                              style: TextStyle(fontSize: 18)))
-                      : ListView.builder(
-                          itemCount: students.length,
-                          itemBuilder: (context, index) {
-                            final student = students[index];
-                            final studentId = student['id'];
-
-                            return Card(
-                              elevation: 2,
-                              margin: EdgeInsets.symmetric(vertical: 5),
-                              child: ListTile(
-                                title: Text(
-                                  "${student['prenom']} ${student['nom']}",
-                                  style: TextStyle(fontSize: 18),
-                                ),
-                                subtitle:
-                                    Text("ID: ${student['idEleve'] ?? ''}"),
-                                trailing: Switch(
-                                  value: absences[studentId] ?? false,
-                                  onChanged: (value) {
-                                    setState(() {
-                                      absences[studentId] = value;
-                                    });
-                                  },
-                                  activeColor: Colors.red,
-                                  inactiveTrackColor: Colors.green,
-                                  inactiveThumbColor: Colors.white,
-                                ),
-                              ),
-                            );
-                          },
-                        ),
+      backgroundColor: lightColor,
+      body: CustomScrollView(
+        slivers: [
+          // AppBar avec gradient
+          SliverAppBar(
+            expandedHeight: 150.0,
+            floating: false,
+            pinned: true,
+            leading: IconButton(
+              icon: Icon(Icons.arrow_back, color: Colors.white),
+              onPressed: () => Navigator.pop(context),
             ),
-
-            SizedBox(height: 20),
-
-            // Bouton d'enregistrement
-            Center(
-              child: ElevatedButton(
-                onPressed: isLoading ? null : _saveAbsences,
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Color.fromARGB(213, 230, 122, 0),
-                  padding: EdgeInsets.symmetric(horizontal: 40, vertical: 15),
-                  textStyle: TextStyle(fontSize: 18),
+            flexibleSpace: FlexibleSpaceBar(
+              background: Container(
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: [orangeColor.withOpacity(0.8), greenColor.withOpacity(0.8)],
+                  ),
                 ),
-                child: Text("ENREGISTRER"),
+                child: SafeArea(
+                  child: Padding(
+                    padding: const EdgeInsets.all(20.0),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisAlignment: MainAxisAlignment.end,
+                      children: [
+                        Text(
+                          'Détails des absences',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 28,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        SizedBox(height: 8),
+                        Text(
+                          "Marquer les élèves absents",
+                          style: TextStyle(
+                            color: Colors.white.withOpacity(0.9),
+                            fontSize: 16,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
               ),
             ),
-          ],
-        ),
+          ),
+          
+          // Contenu principal
+          isLoading
+              ? SliverFillRemaining(
+                  child: Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        CircularProgressIndicator(
+                          valueColor: AlwaysStoppedAnimation<Color>(orangeColor),
+                        ),
+                        SizedBox(height: 16),
+                        Text(
+                          "Chargement des élèves...",
+                          style: TextStyle(
+                            fontSize: 16,
+                            color: darkColor,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                )
+              : SliverToBoxAdapter(
+                  child: Padding(
+                    padding: EdgeInsets.all(20.0),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        // Informations de la séance
+                        _buildSessionInfoCard(),
+                        
+                        // Liste des élèves
+                        _buildStudentsList(),
+                        
+                        // Bouton d'enregistrement
+                        Container(
+                          height: 55,
+                          margin: EdgeInsets.only(bottom: 30),
+                          child: ElevatedButton(
+                            onPressed: isLoading ? null : _saveAbsences,
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: orangeColor,
+                              foregroundColor: Colors.white,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              elevation: 3,
+                              disabledBackgroundColor: darkColor.withOpacity(0.3),
+                            ),
+                            child: Text(
+                              "ENREGISTRER LES ABSENCES",
+                              style: TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+        ],
       ),
     );
   }

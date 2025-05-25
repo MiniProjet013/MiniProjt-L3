@@ -445,13 +445,13 @@ class _ModifierProfsScreenState extends State<ModifierProfsScreen> {
                                 SizedBox(width: 8),
                                 Container(
                                   decoration: BoxDecoration(
-                                    color: Colors.red.withOpacity(0.1),
+                                    color: orangeColor.withOpacity(0.1),
                                     borderRadius: BorderRadius.circular(8),
                                   ),
                                   child: IconButton(
-                                    icon: Icon(Icons.delete, color: Colors.red),
+                                    icon: Icon(Icons.archive, color: orangeColor),
                                     onPressed: () {
-                                      _showDeleteConfirmation(prof);
+                                      _showArchiveConfirmation(prof);
                                     },
                                   ),
                                 ),
@@ -467,22 +467,22 @@ class _ModifierProfsScreenState extends State<ModifierProfsScreen> {
           ),
           
           // Bottom padding
-          SliverPadding(padding: EdgeInsets.only(bottom: 20)),
+          //SliverPadding(padding: EdgeInsets.only(bottom: 20)),
         ],
       ),
       // Floating Action Button
-      floatingActionButton: FloatingActionButton(
+      /*floatingActionButton: FloatingActionButton(
         backgroundColor: greenColor,
         child: Icon(Icons.add),
         onPressed: () {
           // Navigate to add new professor screen
           print("Add new professor");
         },
-      ),
+      ),*/
     );
   }
   
-  void _showDeleteConfirmation(Map<String, dynamic> prof) {
+  void _showArchiveConfirmation(Map<String, dynamic> prof) {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
@@ -490,7 +490,7 @@ class _ModifierProfsScreenState extends State<ModifierProfsScreen> {
           borderRadius: BorderRadius.circular(15),
         ),
         title: Text(
-          "Confirmation",
+          "Confirmation d'archivage",
           style: TextStyle(
             color: darkColor,
             fontWeight: FontWeight.bold,
@@ -502,19 +502,30 @@ class _ModifierProfsScreenState extends State<ModifierProfsScreen> {
             Container(
               padding: EdgeInsets.all(16),
               decoration: BoxDecoration(
-                color: Colors.red.withOpacity(0.1),
+                color: orangeColor.withOpacity(0.1),
                 borderRadius: BorderRadius.circular(10),
               ),
               child: Icon(
-                Icons.warning_amber_rounded,
-                color: Colors.red,
+                Icons.archive,
+                color: orangeColor,
                 size: 50,
               ),
             ),
             SizedBox(height: 16),
             Text(
-              "Voulez-vous vraiment supprimer le professeur ${prof['nom']} ${prof['prenom']}?",
+              "Voulez-vous vraiment archiver le professeur ${prof['nom']} ${prof['prenom']}?",
               style: TextStyle(fontSize: 16),
+              textAlign: TextAlign.center,
+            ),
+            SizedBox(height: 12),
+            Text(
+              "Les données seront sauvegardées dans les archives et le professeur sera retiré de la liste active.",
+              style: TextStyle(
+                fontSize: 14,
+                color: Colors.grey[600],
+                fontStyle: FontStyle.italic,
+              ),
+              textAlign: TextAlign.center,
             ),
           ],
         ),
@@ -528,18 +539,18 @@ class _ModifierProfsScreenState extends State<ModifierProfsScreen> {
           ),
           ElevatedButton(
             style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.red,
+              backgroundColor: orangeColor,
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(8),
               ),
             ),
             child: Text(
-              "Supprimer",
+              "Archiver",
               style: TextStyle(color: Colors.white),
             ),
             onPressed: () async {
               Navigator.pop(context);
-              await _deleteProf(prof);
+              await _archiveProf(prof);
             },
           ),
         ],
@@ -547,77 +558,77 @@ class _ModifierProfsScreenState extends State<ModifierProfsScreen> {
     );
   }
   
-  Future<void> _deleteProf(Map<String, dynamic> prof) async {
-  try {
-    // 1. Get the teacher document
-    DocumentSnapshot profDoc = await _db.collection('profs').doc(prof['idProf']).get();
-    
-    if (!profDoc.exists) {
-      throw Exception("Teacher document not found");
+  Future<void> _archiveProf(Map<String, dynamic> prof) async {
+    try {
+      // 1. Get the teacher document
+      DocumentSnapshot profDoc = await _db.collection('profs').doc(prof['idProf']).get();
+      
+      if (!profDoc.exists) {
+        throw Exception("Teacher document not found");
+      }
+      
+      // 2. Create archive document with all teacher data and timestamp
+      Map<String, dynamic> archiveData = {
+        ...profDoc.data() as Map<String, dynamic>,
+        'archivedAt': FieldValue.serverTimestamp(),
+        'originalId': prof['idProf'],
+        //'deletedBy': _db.doc('users/${_db.app.auth().currentUser?.uid}'), // Optional: track who deleted
+      };
+      
+      // 3. Add to archive collection
+      await _db.collection('ARCHIVE_PROFS').add(archiveData);
+      
+      // 4. Delete from original collection
+      await _db.collection('profs').doc(prof['idProf']).delete();
+      
+      // 5. Remove references in other collections
+      WriteBatch batch = _db.batch();
+      
+      // Remove from classes
+      QuerySnapshot classesSnapshot = await _db
+          .collection('classes')
+          .where("profId", isEqualTo: prof['idProf'])
+          .get();
+          
+      for (var doc in classesSnapshot.docs) {
+        batch.update(doc.reference, {"profId": null});
+      }
+      
+      // Remove from schedules
+      QuerySnapshot schedulesSnapshot = await _db
+          .collection('schedules')
+          .where("profId", isEqualTo: prof['idProf'])
+          .get();
+          
+      for (var doc in schedulesSnapshot.docs) {
+        batch.delete(doc.reference);
+      }
+      
+      // Remove from matieres if needed
+      QuerySnapshot matieresSnapshot = await _db
+          .collection('matieres')
+          .where("profId", isEqualTo: prof['idProf'])
+          .get();
+          
+      for (var doc in matieresSnapshot.docs) {
+        batch.update(doc.reference, {"profId": null});
+      }
+      
+      await batch.commit();
+      
+      // Refresh the list
+      _loadProfessors();
+      
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text("📦 Professeur archivé avec succès!"),
+        backgroundColor: greenColor,
+      ));
+    } catch (e) {
+      print("❌ Erreur lors de l'archivage du professeur: $e");
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text("📦 Professeur archivé avec succès!"),
+        backgroundColor: greenColor,
+      ));
     }
-    
-    // 2. Create archive document with all teacher data and timestamp
-    Map<String, dynamic> archiveData = {
-      ...profDoc.data() as Map<String, dynamic>,
-      'archivedAt': FieldValue.serverTimestamp(),
-      'originalId': prof['idProf'],
-      //'deletedBy': _db.doc('users/${_db.app.auth().currentUser?.uid}'), // Optional: track who deleted
-    };
-    
-    // 3. Add to archive collection
-    await _db.collection('ARCHIVE_PROFS').add(archiveData);
-    
-    // 4. Delete from original collection
-    await _db.collection('profs').doc(prof['idProf']).delete();
-    
-    // 5. Remove references in other collections
-    WriteBatch batch = _db.batch();
-    
-    // Remove from classes
-    QuerySnapshot classesSnapshot = await _db
-        .collection('classes')
-        .where("profId", isEqualTo: prof['idProf'])
-        .get();
-        
-    for (var doc in classesSnapshot.docs) {
-      batch.update(doc.reference, {"profId": null});
-    }
-    
-    // Remove from schedules
-    QuerySnapshot schedulesSnapshot = await _db
-        .collection('schedules')
-        .where("profId", isEqualTo: prof['idProf'])
-        .get();
-        
-    for (var doc in schedulesSnapshot.docs) {
-      batch.delete(doc.reference);
-    }
-    
-    // Remove from matieres if needed
-    QuerySnapshot matieresSnapshot = await _db
-        .collection('matieres')
-        .where("profId", isEqualTo: prof['idProf'])
-        .get();
-        
-    for (var doc in matieresSnapshot.docs) {
-      batch.update(doc.reference, {"profId": null});
-    }
-    
-    await batch.commit();
-    
-    // Refresh the list
-    _loadProfessors();
-    
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-      content: Text("✅ Professeur archivé et supprimé avec succès!"),
-      backgroundColor: greenColor,
-    ));
-  } catch (e) {
-    print("✅ Professeur archivé et supprimé avec succès! $e");
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-      content: Text("✅ Professeur archivé et supprimé avec succès!"),
-      backgroundColor: const Color.fromARGB(255, 21, 153, 4),
-    ));
   }
-}
 }

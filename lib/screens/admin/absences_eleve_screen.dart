@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:intl/intl.dart';
-import 'abcenceselevefiltre.dart';
+
 class AbsencesScreen extends StatefulWidget {
   @override
   _AbsencesScreenState createState() => _AbsencesScreenState();
@@ -14,14 +14,40 @@ class _AbsencesScreenState extends State<AbsencesScreen> {
   final Color darkColor = Color(0xFF333333);
   
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  final TextEditingController _searchController = TextEditingController();
+  
   bool isLoading = true;
   List<DocumentSnapshot> absences = [];
+  List<DocumentSnapshot> filteredAbsences = [];
   String? errorMessage;
+  
+  // Filtres
+  String selectedClasse = '';
+  String selectedMatiere = '';
+  String selectedPeriode = '';
+  DateTime? selectedDate;
+  bool showFilters = false;
+  
+  // Listes pour les filtres
+  Set<String> classes = {};
+  Set<String> matieres = {};
 
   @override
   void initState() {
     super.initState();
     _fetchAbsences();
+    _searchController.addListener(_onSearchChanged);
+  }
+
+  @override
+  void dispose() {
+    _searchController.removeListener(_onSearchChanged);
+    _searchController.dispose();
+    super.dispose();
+  }
+
+  void _onSearchChanged() {
+    _applyFilters();
   }
 
   Future<void> _fetchAbsences() async {
@@ -34,6 +60,8 @@ class _AbsencesScreenState extends State<AbsencesScreen> {
       final QuerySnapshot snapshot = await _firestore.collection('absences').get();
       setState(() {
         absences = snapshot.docs;
+        filteredAbsences = absences;
+        _extractFilterOptions();
         isLoading = false;
       });
     } catch (e) {
@@ -42,6 +70,95 @@ class _AbsencesScreenState extends State<AbsencesScreen> {
         isLoading = false;
       });
     }
+  }
+
+  void _extractFilterOptions() {
+    classes.clear();
+    matieres.clear();
+    
+    for (var doc in absences) {
+      final data = doc.data() as Map<String, dynamic>;
+      if (data['classeId'] != null && data['classeId'].toString().isNotEmpty) {
+        classes.add(data['classeId'].toString());
+      }
+      if (data['matiere'] != null && data['matiere'].toString().isNotEmpty) {
+        matieres.add(data['matiere'].toString());
+      }
+    }
+  }
+
+  void _applyFilters() {
+    setState(() {
+      filteredAbsences = absences.where((doc) {
+        final data = doc.data() as Map<String, dynamic>;
+        
+        // Filtre par recherche (nom, prénom, ID élève)
+        final searchTerm = _searchController.text.toLowerCase();
+        if (searchTerm.isNotEmpty) {
+          final nom = (data['nom'] ?? '').toString().toLowerCase();
+          final prenom = (data['prenom'] ?? '').toString().toLowerCase();
+          final eleveId = (data['eleveId'] ?? '').toString().toLowerCase();
+          
+          if (!nom.contains(searchTerm) && 
+              !prenom.contains(searchTerm) && 
+              !eleveId.contains(searchTerm)) {
+            return false;
+          }
+        }
+        
+        // Filtre par classe
+        if (selectedClasse.isNotEmpty && data['classeId'] != selectedClasse) {
+          return false;
+        }
+        
+        // Filtre par matière
+        if (selectedMatiere.isNotEmpty && data['matiere'] != selectedMatiere) {
+          return false;
+        }
+        
+        // Filtre par période (matin/après-midi)
+        if (selectedPeriode.isNotEmpty) {
+          final heure = data['heure'] ?? '';
+          bool isMorning = true;
+          try {
+            final hourMinute = heure.split(':');
+            if (hourMinute.length > 0) {
+              final hour = int.tryParse(hourMinute[0]) ?? 8;
+              if (hour >= 12) {
+                isMorning = false;
+              }
+            }
+          } catch (e) {
+            // Garde la valeur par défaut
+          }
+          
+          if (selectedPeriode == 'matin' && !isMorning) return false;
+          if (selectedPeriode == 'apres-midi' && isMorning) return false;
+        }
+        
+        // Filtre par date
+        if (selectedDate != null) {
+          final absenceDate = data['date'] ?? '';
+          final selectedDateStr = DateFormat('yyyy-MM-dd').format(selectedDate!);
+          if (absenceDate != selectedDateStr) {
+            return false;
+          }
+        }
+        
+        return true;
+      }).toList();
+    });
+  }
+
+  void _clearFilters() {
+    setState(() {
+      selectedClasse = '';
+      selectedMatiere = '';
+      selectedPeriode = '';
+      selectedDate = null;
+      _searchController.clear();
+      filteredAbsences = absences;
+    });
   }
 
   String _formatDate(String dateString) {
@@ -55,8 +172,7 @@ class _AbsencesScreenState extends State<AbsencesScreen> {
       return dateString;
     }
   }
-// Dans la méthode build de AbsencesScreen
- 
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -64,7 +180,7 @@ class _AbsencesScreenState extends State<AbsencesScreen> {
       body: CustomScrollView(
         slivers: [
           SliverAppBar(
-            expandedHeight: 150.0,
+            expandedHeight: 200.0,
             floating: false,
             pinned: true,
             flexibleSpace: FlexibleSpaceBar(
@@ -95,13 +211,33 @@ class _AbsencesScreenState extends State<AbsencesScreen> {
                           ),
                         ),
                         SizedBox(height: 8),
-                        
                         Text(
                           'Liste des absences des élèves',
                           style: TextStyle(
                             color: Colors.white.withOpacity(0.9),
                             fontSize: 16,
                           ),
+                        ),
+                        SizedBox(height: 16),
+                        Row(
+                          children: [
+                            Text(
+                              '${filteredAbsences.length} absence(s) trouvée(s)',
+                              style: TextStyle(
+                                color: Colors.white.withOpacity(0.9),
+                                fontSize: 14,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                            Spacer(),
+                            IconButton(
+                              onPressed: () => setState(() => showFilters = !showFilters),
+                              icon: Icon(
+                                showFilters ? Icons.filter_list_off : Icons.filter_list,
+                                color: Colors.white,
+                              ),
+                            ),
+                          ],
                         ),
                       ],
                     ),
@@ -110,8 +246,200 @@ class _AbsencesScreenState extends State<AbsencesScreen> {
               ),
             ),
           ),
+          
+          // Barre de recherche
+          SliverToBoxAdapter(
+            child: Padding(
+              padding: const EdgeInsets.all(16.0),
+              child: Container(
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(12),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.1),
+                      blurRadius: 4,
+                      offset: Offset(0, 2),
+                    ),
+                  ],
+                ),
+                child: TextField(
+                  controller: _searchController,
+                  decoration: InputDecoration(
+                    hintText: 'Rechercher par nom, prénom ou ID élève...',
+                    prefixIcon: Icon(Icons.search, color: orangeColor),
+                    suffixIcon: _searchController.text.isNotEmpty
+                        ? IconButton(
+                            onPressed: () => _searchController.clear(),
+                            icon: Icon(Icons.clear, color: darkColor.withOpacity(0.5)),
+                          )
+                        : null,
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: BorderSide.none,
+                    ),
+                    filled: true,
+                    fillColor: Colors.white,
+                    contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                  ),
+                ),
+              ),
+            ),
+          ),
+          
+          // Section des filtres
+          if (showFilters)
+            SliverToBoxAdapter(
+              child: Container(
+                margin: EdgeInsets.symmetric(horizontal: 16),
+                padding: EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(12),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.1),
+                      blurRadius: 4,
+                      offset: Offset(0, 2),
+                    ),
+                  ],
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Icon(Icons.tune, color: orangeColor),
+                        SizedBox(width: 8),
+                        Text(
+                          'Filtres',
+                          style: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                            color: darkColor,
+                          ),
+                        ),
+                        Spacer(),
+                        TextButton(
+                          onPressed: _clearFilters,
+                          child: Text(
+                            'Effacer tout',
+                            style: TextStyle(color: orangeColor),
+                          ),
+                        ),
+                      ],
+                    ),
+                    SizedBox(height: 16),
+                    
+                    // Filtre par classe
+                    _buildFilterDropdown(
+                      'Classe',
+                      selectedClasse,
+                      [''] + classes.toList(),
+                      (value) => setState(() {
+                        selectedClasse = value ?? '';
+                        _applyFilters();
+                      }),
+                      Icons.class_,
+                    ),
+                    
+                    SizedBox(height: 12),
+                    
+                    // Filtre par matière
+                    _buildFilterDropdown(
+                      'Matière',
+                      selectedMatiere,
+                      [''] + matieres.toList(),
+                      (value) => setState(() {
+                        selectedMatiere = value ?? '';
+                        _applyFilters();
+                      }),
+                      Icons.book,
+                    ),
+                    
+                    SizedBox(height: 12),
+                    
+                    // Filtre par période
+                    _buildFilterDropdown(
+                      'Période',
+                      selectedPeriode,
+                      ['', 'matin', 'apres-midi'],
+                      (value) => setState(() {
+                        selectedPeriode = value ?? '';
+                        _applyFilters();
+                      }),
+                      Icons.access_time,
+                      customLabels: {
+                        '': 'Toutes les périodes',
+                        'matin': 'Matin',
+                        'apres-midi': 'Après-midi',
+                      },
+                    ),
+                    
+                    SizedBox(height: 12),
+                    
+                    // Filtre par date
+                    Container(
+                      decoration: BoxDecoration(
+                        border: Border.all(color: Colors.grey.withOpacity(0.3)),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: ListTile(
+                        leading: Icon(Icons.calendar_today, color: greenColor),
+                        title: Text(
+                          selectedDate != null 
+                              ? 'Date: ${DateFormat('dd/MM/yyyy').format(selectedDate!)}'
+                              : 'Sélectionner une date',
+                          style: TextStyle(color: darkColor),
+                        ),
+                        trailing: selectedDate != null
+                            ? IconButton(
+                                onPressed: () => setState(() {
+                                  selectedDate = null;
+                                  _applyFilters();
+                                }),
+                                icon: Icon(Icons.clear, color: orangeColor),
+                              )
+                            : Icon(Icons.arrow_drop_down, color: darkColor),
+                        onTap: () async {
+                          final date = await showDatePicker(
+                            context: context,
+                            initialDate: selectedDate ?? DateTime.now(),
+                            firstDate: DateTime(2020),
+                            lastDate: DateTime.now().add(Duration(days: 365)),
+                            builder: (context, child) {
+                              return Theme(
+                                data: Theme.of(context).copyWith(
+                                  colorScheme: ColorScheme.light(
+                                    primary: orangeColor,
+                                    onPrimary: Colors.white,
+                                    surface: Colors.white,
+                                    onSurface: darkColor,
+                                  ),
+                                ),
+                                child: child!,
+                              );
+                            },
+                          );
+                          if (date != null) {
+                            setState(() {
+                              selectedDate = date;
+                              _applyFilters();
+                            });
+                          }
+                        },
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          
+          if (showFilters) SliverToBoxAdapter(child: SizedBox(height: 16)),
+          
+          // Liste des absences
           SliverPadding(
-            padding: EdgeInsets.all(16.0),
+            padding: EdgeInsets.symmetric(horizontal: 16.0),
             sliver: isLoading
                 ? SliverFillRemaining(
                     child: Center(
@@ -155,26 +483,45 @@ class _AbsencesScreenState extends State<AbsencesScreen> {
                           ),
                         ),
                       )
-                    : absences.isEmpty
+                    : filteredAbsences.isEmpty
                         ? SliverFillRemaining(
                             child: Center(
                               child: Column(
                                 mainAxisAlignment: MainAxisAlignment.center,
                                 children: [
                                   Icon(
-                                    Icons.info_outline,
+                                    Icons.search_off,
                                     color: greenColor,
                                     size: 60,
                                   ),
                                   SizedBox(height: 16),
                                   Text(
-                                    'Aucune absence trouvée',
+                                    absences.isEmpty 
+                                        ? 'Aucune absence trouvée'
+                                        : 'Aucune absence ne correspond aux critères de recherche',
                                     style: TextStyle(
                                       color: darkColor,
                                       fontSize: 18,
                                       fontWeight: FontWeight.w500,
                                     ),
+                                    textAlign: TextAlign.center,
                                   ),
+                                  if (absences.isNotEmpty) ...[
+                                    SizedBox(height: 16),
+                                    ElevatedButton(
+                                      onPressed: _clearFilters,
+                                      style: ElevatedButton.styleFrom(
+                                        backgroundColor: orangeColor,
+                                        shape: RoundedRectangleBorder(
+                                          borderRadius: BorderRadius.circular(8),
+                                        ),
+                                      ),
+                                      child: Text(
+                                        'Effacer les filtres',
+                                        style: TextStyle(color: Colors.white),
+                                      ),
+                                    ),
+                                  ],
                                 ],
                               ),
                             ),
@@ -182,22 +529,61 @@ class _AbsencesScreenState extends State<AbsencesScreen> {
                         : SliverList(
                             delegate: SliverChildBuilderDelegate(
                               (context, index) {
-                                final absence = absences[index].data() as Map<String, dynamic>;
+                                final absence = filteredAbsences[index].data() as Map<String, dynamic>;
                                 return _buildAbsenceCard(absence, context);
                               },
-                              childCount: absences.length,
+                              childCount: filteredAbsences.length,
                             ),
                           ),
           ),
+          
+          // Espacement en bas
+          //SliverToBoxAdapter(child: SizedBox(height: 80)),
         ],
       ),
-      floatingActionButton: FloatingActionButton(
+     /* floatingActionButton: FloatingActionButton(
         onPressed: () {
           // Navigation pour ajouter une nouvelle absence
-          // Vous pouvez implémenter cette fonctionnalité si nécessaire
         },
         backgroundColor: orangeColor,
         child: Icon(Icons.add, color: Colors.white),
+      ),*/
+    );
+  }
+
+  Widget _buildFilterDropdown(
+    String label,
+    String selectedValue,
+    List<String> options,
+    ValueChanged<String?> onChanged,
+    IconData icon, {
+    Map<String, String>? customLabels,
+  }) {
+    return Container(
+      decoration: BoxDecoration(
+        border: Border.all(color: Colors.grey.withOpacity(0.3)),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: DropdownButtonFormField<String>(
+        value: selectedValue.isEmpty ? null : selectedValue,
+        decoration: InputDecoration(
+          labelText: label,
+          prefixIcon: Icon(icon, color: greenColor),
+          border: InputBorder.none,
+          contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        ),
+        items: options.map((option) {
+          String displayText = option.isEmpty ? 'Tous' : option;
+          if (customLabels != null && customLabels.containsKey(option)) {
+            displayText = customLabels[option]!;
+          }
+          return DropdownMenuItem<String>(
+            value: option.isEmpty ? null : option,
+            child: Text(displayText),
+          );
+        }).toList(),
+        onChanged: onChanged,
+        isExpanded: true,
       ),
     );
   }

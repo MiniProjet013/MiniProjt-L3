@@ -50,7 +50,7 @@ class _RemarquesParentScreenState extends State<RemarquesParentScreen> {
               gradient: LinearGradient(
                 begin: Alignment.topCenter,
                 end: Alignment.bottomCenter,
-                colors: [Color(0xFF4285F4), Color(0xFF5B6AF0)],
+                colors: [Color.fromARGB(255, 40, 141, 0), Color.fromARGB(255, 63, 136, 3)],
               ),
             ),
             child: SafeArea(
@@ -64,7 +64,7 @@ class _RemarquesParentScreenState extends State<RemarquesParentScreen> {
                       onPressed: () => Navigator.pop(context),
                     ),
                     Text(
-                      "REMARQUES",
+                      "CONVOCATIONS",
                       style: TextStyle(
                         color: Colors.white,
                         fontWeight: FontWeight.bold,
@@ -233,7 +233,7 @@ class _RemarquesParentScreenState extends State<RemarquesParentScreen> {
       List<dynamic> remarquesList = data['remarque'];
       remarque = remarquesList.map((e) => '• $e').join('\n');
     } else {
-      remarque = 'Aucune remarque disponible.';
+      remarque = 'Aucune convocation disponible.';
     }
 
     // Déterminer le type/sévérité de la remarque
@@ -314,7 +314,7 @@ class _RemarquesParentScreenState extends State<RemarquesParentScreen> {
                 ),
                 SizedBox(height: 16),
                 _buildInfoSection(
-                  'Remarques:',
+                  'Convocations:',
                   [
                     Container(
                       padding: EdgeInsets.all(12),
@@ -482,7 +482,7 @@ class _RemarquesParentScreenState extends State<RemarquesParentScreen> {
                color: Color(0xFF4285F4).withOpacity(0.5)),
           SizedBox(height: 16),
           Text(
-            "Aucune remarque trouvée",
+            "Aucune convocation trouvée",
             style: TextStyle(
               fontSize: 18,
               color: Colors.grey[700],
@@ -491,7 +491,7 @@ class _RemarquesParentScreenState extends State<RemarquesParentScreen> {
           ),
           SizedBox(height: 8),
           Text(
-            "Vous n'avez pas encore reçu de remarques",
+            "Vous n'avez pas encore reçu de convovation",
             style: TextStyle(
               color: Colors.grey[500],
             ),

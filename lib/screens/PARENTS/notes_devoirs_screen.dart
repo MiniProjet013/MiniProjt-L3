@@ -155,7 +155,7 @@ class _NotesDevoirsScreenState extends State<NotesDevoirsScreen> with SingleTick
               gradient: LinearGradient(
                 begin: Alignment.topCenter,
                 end: Alignment.bottomCenter,
-                colors: [Color(0xFF4285F4), Color(0xFF5B6AF0)],
+              colors: [Color.fromARGB(255, 40, 141, 0), Color.fromARGB(255, 63, 136, 3)],
               ),
             ),
             child: SafeArea(
@@ -231,7 +231,7 @@ class _NotesDevoirsScreenState extends State<NotesDevoirsScreen> with SingleTick
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
           const CircularProgressIndicator(
-            valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF4285F4)),
+            valueColor: AlwaysStoppedAnimation<Color>(Color.fromARGB(255, 66, 84, 244)),
           ),
           const SizedBox(height: 16),
           Text(

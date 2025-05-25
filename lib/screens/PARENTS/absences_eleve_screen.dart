@@ -201,7 +201,7 @@ class _AbsencesScreenState extends State<AbsencesScreen> {
           gradient: LinearGradient(
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
-            colors: [Color(0xFF4285F4), Color(0xFF5B6AF0)],
+           colors: [Color.fromARGB(255, 40, 141, 0), Color.fromARGB(255, 63, 136, 3)],
           ),
         ),
         child: SafeArea(
@@ -234,7 +234,7 @@ class _AbsencesScreenState extends State<AbsencesScreen> {
                       ),
                       child: DropdownButton<String>(
                         value: currentPeriod,
-                        dropdownColor: Color(0xFF4285F4),
+                        dropdownColor: Color.fromARGB(255, 218, 100, 3),
                         underline: SizedBox(),
                         icon: Icon(Icons.arrow_drop_down, color: Colors.white),
                         style: TextStyle(color: Colors.white, fontSize: 16),
@@ -273,7 +273,7 @@ class _AbsencesScreenState extends State<AbsencesScreen> {
                         children: [
                           CircleAvatar(
                             radius: 30,
-                            backgroundColor: Color(0xFF4285F4).withOpacity(0.2),
+                            backgroundColor: Color.fromARGB(255, 255, 115, 0).withOpacity(0.2),
                             child: Text(
                               "${eleveData!['prenom']?[0] ?? ''}${eleveData!['nom']?[0] ?? ''}",
                               style: TextStyle(
@@ -499,7 +499,7 @@ class _AbsencesScreenState extends State<AbsencesScreen> {
         onPressed: () {
           _showFilterDialog();
         },
-        backgroundColor: Color(0xFF4285F4),
+        backgroundColor: Color.fromARGB(255, 223, 101, 2),
         child: Icon(Icons.filter_list, color: Colors.white),
       ),
     );
@@ -559,7 +559,7 @@ class _AbsencesScreenState extends State<AbsencesScreen> {
               return ListTile(
                 title: Text(period),
                 trailing: period == currentPeriod
-                    ? Icon(Icons.check, color: Color(0xFF4285F4))
+                    ? Icon(Icons.check, color: Color.fromARGB(255, 194, 79, 3))
                     : null,
                 onTap: () {
                   setState(() {

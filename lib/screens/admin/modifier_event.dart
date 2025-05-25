@@ -288,7 +288,7 @@ class _ModifierEvenementsScreenState extends State<ModifierEvenementsScreen> {
                           ),
                         ),
                       ),
-                      SizedBox(width: 10),
+                      SizedBox(width:7 ,height: 10,),
                       Expanded(
                         child: Container(
                           decoration: BoxDecoration(
@@ -300,11 +300,11 @@ class _ModifierEvenementsScreenState extends State<ModifierEvenementsScreen> {
                             child: Padding(
                               padding: EdgeInsets.symmetric(horizontal: 15, vertical: 15),
                               child: Row(
-                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                mainAxisAlignment: MainAxisAlignment.spaceAround,
                                 children: [
                                   Text(
                                     selectedDate == null
-                                        ? "Sélectionner une date"
+                                        ? "selectionne Date"
                                         : "${selectedDate!.day}/${selectedDate!.month}/${selectedDate!.year}",
                                     style: TextStyle(
                                       color: selectedDate == null ? Colors.grey[600] : darkColor,
@@ -503,18 +503,19 @@ class _ModifierEvenementsScreenState extends State<ModifierEvenementsScreen> {
           ),
           
           // Bottom padding
-          SliverPadding(padding: EdgeInsets.only(bottom: 20)),
+          /*SliverPadding(padding: EdgeInsets.only(bottom: 20)),
+        ],*/
         ],
       ),
       // Floating Action Button
-      floatingActionButton: FloatingActionButton(
+      /*floatingActionButton: FloatingActionButton(
         backgroundColor: greenColor,
         child: Icon(Icons.add),
         onPressed: () {
           // Navigate to add new event screen
           print("Add new event");
         },
-      ),
+      ),*/
     );
   }
   

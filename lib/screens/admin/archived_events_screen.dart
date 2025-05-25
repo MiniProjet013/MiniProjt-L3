@@ -13,15 +13,54 @@ class _EvenementScreenState extends State<EvenementScreen> {
   final Color darkColor = Color(0xFF333333);
   
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  final TextEditingController _searchController = TextEditingController();
+  
   bool isLoading = true;
+  bool isSearchVisible = false;
   List<DocumentSnapshot> evenements = [];
+  List<DocumentSnapshot> filteredEvenements = [];
   String? errorMessage;
   int? selectedEvenementIndex;
+  String searchQuery = '';
 
   @override
   void initState() {
     super.initState();
     _fetchEvenements();
+    _searchController.addListener(_onSearchChanged);
+  }
+
+  @override
+  void dispose() {
+    _searchController.removeListener(_onSearchChanged);
+    _searchController.dispose();
+    super.dispose();
+  }
+
+  void _onSearchChanged() {
+    setState(() {
+      searchQuery = _searchController.text;
+      _filterEvenements();
+    });
+  }
+
+  void _filterEvenements() {
+    if (searchQuery.isEmpty) {
+      filteredEvenements = List.from(evenements);
+    } else {
+      filteredEvenements = evenements.where((doc) {
+        final evenement = doc.data() as Map<String, dynamic>;
+        final type = (evenement['type'] ?? '').toString().toLowerCase();
+        final description = (evenement['description'] ?? '').toString().toLowerCase();
+        final date = _formatDate(evenement['date']).toLowerCase();
+        final query = searchQuery.toLowerCase();
+        
+        return type.contains(query) || 
+               description.contains(query) || 
+               date.contains(query);
+      }).toList();
+    }
+    selectedEvenementIndex = null; // Reset selection when filtering
   }
 
   Future<void> _fetchEvenements() async {
@@ -34,6 +73,7 @@ class _EvenementScreenState extends State<EvenementScreen> {
       final QuerySnapshot snapshot = await _firestore.collection('ARCHIVE_EVENEMENTS').get();
       setState(() {
         evenements = snapshot.docs;
+        _filterEvenements();
         isLoading = false;
       });
     } catch (e) {
@@ -44,28 +84,152 @@ class _EvenementScreenState extends State<EvenementScreen> {
     }
   }
 
+  Future<void> _deleteEvenement(DocumentSnapshot evenementDoc) async {
+    try {
+      await evenementDoc.reference.delete();
+      
+      setState(() {
+        evenements.removeWhere((doc) => doc.id == evenementDoc.id);
+        _filterEvenements();
+        selectedEvenementIndex = null;
+      });
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Événement supprimé définitivement'),
+          backgroundColor: greenColor,
+          duration: Duration(seconds: 3),
+        ),
+      );
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Erreur lors de la suppression: $e'),
+          backgroundColor: Colors.red,
+          duration: Duration(seconds: 3),
+        ),
+      );
+    }
+  }
+
+  Future<void> _showDeleteConfirmation(DocumentSnapshot evenementDoc) async {
+    final evenement = evenementDoc.data() as Map<String, dynamic>;
+    final type = evenement['type'] ?? 'Activité';
+    
+    return showDialog<void>(
+      context: context,
+      barrierDismissible: false,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(15),
+          ),
+          title: Row(
+            children: [
+              Icon(Icons.warning, color: Colors.red, size: 28),
+              SizedBox(width: 12),
+              Text(
+                'Confirmer ',
+                style: TextStyle(
+                  color: darkColor,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ],
+          ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Êtes-vous sûr de vouloir supprimer définitivement cet événement ?',
+                style: TextStyle(color: darkColor),
+              ),
+              SizedBox(height: 12),
+              Container(
+                padding: EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.red.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: Colors.red.withOpacity(0.3)),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Événement: $type',
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        color: darkColor,
+                      ),
+                    ),
+                    Text(
+                      'Date: ${_formatDate(evenement['date'])}',
+                      style: TextStyle(color: darkColor.withOpacity(0.8)),
+                    ),
+                  ],
+                ),
+              ),
+              SizedBox(height: 12),
+              Text(
+                '⚠️ Cette action est irréversible !',
+                style: TextStyle(
+                  color: Colors.red,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ],
+          ),
+          actions: <Widget>[
+            TextButton(
+              child: Text(
+                'Annuler',
+                style: TextStyle(color: greenColor),
+              ),
+              onPressed: () {
+                Navigator.of(context).pop();
+              },
+            ),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.red,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
+              ),
+              child: Text(
+                'Supprimer',
+                style: TextStyle(color: Colors.white),
+              ),
+              onPressed: () {
+                Navigator.of(context).pop();
+                _deleteEvenement(evenementDoc);
+              },
+            ),
+          ],
+        );
+      },
+    );
+  }
+
   String _formatDate(dynamic dateValue) {
     try {
       if (dateValue == null) {
         return 'Non spécifié';
       }
       
-      // Si c'est un Timestamp Firestore
       if (dateValue is Timestamp) {
         DateTime dateTime = dateValue.toDate();
         return '${dateTime.day}/${dateTime.month}/${dateTime.year} à ${dateTime.hour}:${dateTime.minute.toString().padLeft(2, '0')}';
       }
       
-      // Si c'est déjà une chaîne
       if (dateValue is String) {
-        // Si la date est au format UTC comme "6 mai 2025 à 07:05:25 UTC+1"
         if (dateValue.contains('UTC')) {
-          return dateValue; // Déjà formaté correctement
+          return dateValue;
         }
         return dateValue;
       }
       
-      // Par défaut
       return dateValue.toString();
     } catch (e) {
       return 'Format inconnu';
@@ -79,7 +243,7 @@ class _EvenementScreenState extends State<EvenementScreen> {
       body: CustomScrollView(
         slivers: [
           SliverAppBar(
-            expandedHeight: 150.0,
+            expandedHeight: isSearchVisible ? 200.0 : 150.0,
             floating: false,
             pinned: true,
             flexibleSpace: FlexibleSpaceBar(
@@ -101,22 +265,93 @@ class _EvenementScreenState extends State<EvenementScreen> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       mainAxisAlignment: MainAxisAlignment.end,
                       children: [
-                        Text(
-                          'ÉVÉNEMENTS',
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontSize: 28,
-                            fontWeight: FontWeight.bold,
-                          ),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    'ÉVÉNEMENTS',
+                                    style: TextStyle(
+                                      color: Colors.white,
+                                      fontSize: 28,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                  SizedBox(height: 8),
+                                  Text(
+                                    'Liste des événements archivés (${filteredEvenements.length})',
+                                    style: TextStyle(
+                                      color: Colors.white.withOpacity(0.9),
+                                      fontSize: 16,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            IconButton(
+                              onPressed: () {
+                                setState(() {
+                                  isSearchVisible = !isSearchVisible;
+                                  if (!isSearchVisible) {
+                                    _searchController.clear();
+                                    searchQuery = '';
+                                    _filterEvenements();
+                                  }
+                                });
+                              },
+                              icon: Icon(
+                                isSearchVisible ? Icons.close : Icons.search,
+                                color: Colors.white,
+                                size: 28,
+                              ),
+                            ),
+                          ],
                         ),
-                        SizedBox(height: 8),
-                        Text(
-                          'Liste des événements de l\'école',
-                          style: TextStyle(
-                            color: Colors.white.withOpacity(0.9),
-                            fontSize: 16,
+                        if (isSearchVisible) ...[
+                          SizedBox(height: 16),
+                          Container(
+                            decoration: BoxDecoration(
+                              color: Colors.white.withOpacity(0.2),
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(
+                                color: Colors.white.withOpacity(0.3),
+                              ),
+                            ),
+                            child: TextField(
+                              controller: _searchController,
+                              style: TextStyle(color: Colors.white),
+                              decoration: InputDecoration(
+                                hintText: 'Rechercher par type, description ou date...',
+                                hintStyle: TextStyle(
+                                  color: Colors.white.withOpacity(0.7),
+                                ),
+                                prefixIcon: Icon(
+                                  Icons.search,
+                                  color: Colors.white.withOpacity(0.8),
+                                ),
+                                suffixIcon: searchQuery.isNotEmpty
+                                    ? IconButton(
+                                        onPressed: () {
+                                          _searchController.clear();
+                                        },
+                                        icon: Icon(
+                                          Icons.clear,
+                                          color: Colors.white.withOpacity(0.8),
+                                        ),
+                                      )
+                                    : null,
+                                border: InputBorder.none,
+                                contentPadding: EdgeInsets.symmetric(
+                                  horizontal: 16,
+                                  vertical: 12,
+                                ),
+                              ),
+                            ),
                           ),
-                        ),
+                        ],
                       ],
                     ),
                   ),
@@ -169,26 +404,42 @@ class _EvenementScreenState extends State<EvenementScreen> {
                           ),
                         ),
                       )
-                    : evenements.isEmpty
+                    : filteredEvenements.isEmpty
                         ? SliverFillRemaining(
                             child: Center(
                               child: Column(
                                 mainAxisAlignment: MainAxisAlignment.center,
                                 children: [
                                   Icon(
-                                    Icons.info_outline,
+                                    searchQuery.isNotEmpty 
+                                        ? Icons.search_off 
+                                        : Icons.info_outline,
                                     color: greenColor,
                                     size: 60,
                                   ),
                                   SizedBox(height: 16),
                                   Text(
-                                    'Aucun événement trouvé',
+                                    searchQuery.isNotEmpty
+                                        ? 'Aucun résultat pour "$searchQuery"'
+                                        : 'Aucun événement trouvé',
                                     style: TextStyle(
                                       color: darkColor,
                                       fontSize: 18,
                                       fontWeight: FontWeight.w500,
                                     ),
                                   ),
+                                  if (searchQuery.isNotEmpty) ...[
+                                    SizedBox(height: 12),
+                                    TextButton(
+                                      onPressed: () {
+                                        _searchController.clear();
+                                      },
+                                      child: Text(
+                                        'Effacer la recherche',
+                                        style: TextStyle(color: orangeColor),
+                                      ),
+                                    ),
+                                  ],
                                 ],
                               ),
                             ),
@@ -196,17 +447,18 @@ class _EvenementScreenState extends State<EvenementScreen> {
                         : SliverList(
                             delegate: SliverChildBuilderDelegate(
                               (context, index) {
-                                final evenement = evenements[index].data() as Map<String, dynamic>;
+                                final evenementDoc = filteredEvenements[index];
+                                final evenement = evenementDoc.data() as Map<String, dynamic>;
                                 final bool isSelected = selectedEvenementIndex == index;
                                 return Column(
                                   children: [
-                                    _buildEvenementCard(evenement, context, index, isSelected),
+                                    _buildEvenementCard(evenement, evenementDoc, context, index, isSelected),
                                     if (isSelected)
-                                      _buildEvenementDetails(evenement)
+                                      _buildEvenementDetails(evenement, evenementDoc)
                                   ],
                                 );
                               },
-                              childCount: evenements.length,
+                              childCount: filteredEvenements.length,
                             ),
                           ),
           ),
@@ -222,7 +474,7 @@ class _EvenementScreenState extends State<EvenementScreen> {
     );
   }
 
-  Widget _buildEvenementCard(Map<String, dynamic> evenement, BuildContext context, int index, bool isSelected) {
+  Widget _buildEvenementCard(Map<String, dynamic> evenement, DocumentSnapshot evenementDoc, BuildContext context, int index, bool isSelected) {
     final type = evenement['type'] ?? 'Activité';
     final date = evenement['date'];
     final description = evenement['description'] ?? '';
@@ -310,6 +562,16 @@ class _EvenementScreenState extends State<EvenementScreen> {
                         ],
                       ),
                     ),
+                    // Bouton de suppression
+                    IconButton(
+                      onPressed: () => _showDeleteConfirmation(evenementDoc),
+                      icon: Icon(
+                        Icons.delete_forever,
+                        color: Colors.white,
+                        size: 20,
+                      ),
+                      tooltip: 'Supprimer définitivement',
+                    ),
                     Icon(
                       isSelected ? Icons.keyboard_arrow_up : Icons.keyboard_arrow_down,
                       color: Colors.white,
@@ -353,7 +615,7 @@ class _EvenementScreenState extends State<EvenementScreen> {
     );
   }
 
-  Widget _buildEvenementDetails(Map<String, dynamic> evenement) {
+  Widget _buildEvenementDetails(Map<String, dynamic> evenement, DocumentSnapshot evenementDoc) {
     final type = evenement['type'] ?? 'Activité';
     final date = evenement['date'];
     final dateCreation = evenement['dateCreation'];
@@ -375,6 +637,30 @@ class _EvenementScreenState extends State<EvenementScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            // Bouton de suppression en haut des détails
+            Container(
+              width: double.infinity,
+              margin: EdgeInsets.only(bottom: 16),
+              child: ElevatedButton.icon(
+                onPressed: () => _showDeleteConfirmation(evenementDoc),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.red,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  padding: EdgeInsets.symmetric(vertical: 12),
+                ),
+                icon: Icon(Icons.delete_forever, color: Colors.white),
+                label: Text(
+                  'Supprimer définitivement',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+            ),
+            
             _buildInfoRow(
               'Type d\'événement',
               type,

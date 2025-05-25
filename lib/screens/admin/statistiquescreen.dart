@@ -39,7 +39,9 @@ class _StatistiquesEtablissementScreenState extends State<StatistiquesEtablissem
   // Variables pour la gestion des classes et élèves
   String? selectedClass;
   List<Map<String, dynamic>> classStudentsList = [];
+  List<Map<String, dynamic>> classProfsList = []; // Nouvelle liste pour les profs de classe
   bool isLoadingClassStudents = false;
+  bool isLoadingClassProfs = false; // Nouveau flag pour le chargement des profs
   bool isLoadingClasses = true;
   String? selectedClassNumber;
   
@@ -225,6 +227,66 @@ class _StatistiquesEtablissementScreenState extends State<StatistiquesEtablissem
       print("Erreur lors du chargement des élèves: $e");
       setState(() {
         isLoadingClassStudents = false;
+      });
+    }
+  }
+
+  // Nouvelle fonction pour charger les professeurs d'une classe
+  Future<void> _loadProfsForClass(String classNumber) async {
+    setState(() {
+      isLoadingClassProfs = true;
+      classProfsList.clear();
+    });
+
+    try {
+      // Récupérer la classe par son numéro
+      QuerySnapshot classSnapshot = await _db
+          .collection('classes')
+          .where('numeroClasse', isEqualTo: classNumber)
+          .get();
+
+      if (classSnapshot.docs.isNotEmpty) {
+        Map<String, dynamic> classData = classSnapshot.docs.first.data() as Map<String, dynamic>;
+        List<dynamic> profsIds = classData['profs'] ?? [];
+
+        List<Map<String, dynamic>> profs = [];
+
+        // Récupérer les détails de chaque professeur
+        for (String profId in profsIds) {
+          try {
+            DocumentSnapshot profDoc = await _db.collection('profs').doc(profId).get();
+            if (profDoc.exists) {
+              Map<String, dynamic> profData = profDoc.data() as Map<String, dynamic>;
+              profs.add({
+                'id': profDoc.id,
+                'nom': profData['nom'] ?? '',
+                'prenom': profData['prenom'] ?? '',
+                'nomComplet': "${profData['prenom'] ?? ''} ${profData['nom'] ?? ''}",
+                'matiere': profData['matiere'] ?? 'Non spécifiée',
+              });
+            }
+          } catch (e) {
+            print("Erreur lors du chargement du professeur $profId: $e");
+          }
+        }
+
+        // Trier les professeurs par nom
+        profs.sort((a, b) => a['nomComplet'].compareTo(b['nomComplet']));
+
+        setState(() {
+          classProfsList = profs;
+          isLoadingClassProfs = false;
+        });
+      } else {
+        setState(() {
+          classProfsList = [];
+          isLoadingClassProfs = false;
+        });
+      }
+    } catch (e) {
+      print("Erreur lors du chargement des professeurs: $e");
+      setState(() {
+        isLoadingClassProfs = false;
       });
     }
   }
@@ -414,6 +476,37 @@ class _StatistiquesEtablissementScreenState extends State<StatistiquesEtablissem
             
             SizedBox(height: 20),
             
+            // Professeurs de la classe sélectionnée
+            if (selectedClassNumber != null)
+              Card(
+                elevation: 3,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+                child: Padding(
+                  padding: EdgeInsets.all(16),
+                  child: Column(
+                    children: [
+                      Text(
+                        "Professeurs de la classe $selectedClassNumber",
+                        style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                          color: orangeColor,
+                        ),
+                      ),
+                      SizedBox(height: 10),
+                      if (isLoadingClassProfs)
+                        Center(child: CircularProgressIndicator())
+                      else if (classProfsList.isEmpty)
+                        Center(child: Text("Aucun professeur assigné à cette classe"))
+                      else
+                        _buildProfList(),
+                    ],
+                  ),
+                ),
+              ),
+            
+            SizedBox(height: 20),
+            
             // Liste des élèves de la classe sélectionnée
             if (selectedClassNumber != null)
               Card(
@@ -428,7 +521,7 @@ class _StatistiquesEtablissementScreenState extends State<StatistiquesEtablissem
                         style: TextStyle(
                           fontSize: 18,
                           fontWeight: FontWeight.bold,
-                          color: orangeColor,
+                          color: greenColor,
                         ),
                       ),
                       SizedBox(height: 10),
@@ -469,7 +562,36 @@ class _StatistiquesEtablissementScreenState extends State<StatistiquesEtablissem
         });
         if (value != null) {
           _loadStudentsForClass(value);
+          _loadProfsForClass(value); // Charger aussi les professeurs
         }
+      },
+    );
+  }
+
+  // Nouveau widget pour afficher la liste des professeurs
+  Widget _buildProfList() {
+    return ListView.builder(
+      shrinkWrap: true,
+      physics: NeverScrollableScrollPhysics(),
+      itemCount: classProfsList.length,
+      itemBuilder: (context, index) {
+        final prof = classProfsList[index];
+        return Card(
+          margin: EdgeInsets.symmetric(vertical: 8),
+          elevation: 2,
+          child: ListTile(
+            leading: CircleAvatar(
+              backgroundColor: orangeColor.withOpacity(0.2),
+              child: Icon(Icons.person_outline, color: orangeColor),
+            ),
+            title: Text(
+              prof['nomComplet'],
+              style: TextStyle(fontWeight: FontWeight.bold),
+            ),
+            subtitle: Text("Matière: ${prof['matiere']}"),
+            trailing: Icon(Icons.school, size: 20, color: orangeColor),
+          ),
+        );
       },
     );
   }

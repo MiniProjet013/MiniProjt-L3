@@ -21,7 +21,7 @@ class ArchiveScreen extends StatelessWidget {
     {
       "title": "PROFS",
       "icon": Icons.person,
-      "route": ProfesseursScreen() ,
+      "route": ArchiveProfesseursScreen() ,
       "color": Color.fromARGB(255, 1, 110, 5) // vert
     },
     {

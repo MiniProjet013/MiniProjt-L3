@@ -21,6 +21,7 @@ class _EleveModifierScreenState extends State<EleveModifierScreen> {
   final Color greenColor = Color.fromARGB(255, 1, 110, 5);
   final Color lightColor = Color.fromARGB(255, 255, 255, 255);
   final Color darkColor = Color(0xFF333333);
+  final Color archiveColor = Color.fromARGB(255, 255, 152, 0); // Orange for archive
   
   List<String> niveauxEtude = [
     "1ère année", "2ème année", "3ème année",
@@ -365,6 +366,7 @@ class _EleveModifierScreenState extends State<EleveModifierScreen> {
                                   ),
                                   child: IconButton(
                                     icon: Icon(Icons.edit, color: Colors.blue),
+                                    tooltip: "Modifier l'élève",
                                     onPressed: () async {
                                       final result = await Navigator.push(
                                         context,
@@ -382,13 +384,14 @@ class _EleveModifierScreenState extends State<EleveModifierScreen> {
                                 SizedBox(width: 8),
                                 Container(
                                   decoration: BoxDecoration(
-                                    color: Colors.red.withOpacity(0.1),
+                                    color: archiveColor.withOpacity(0.1),
                                     borderRadius: BorderRadius.circular(8),
                                   ),
                                   child: IconButton(
-                                    icon: Icon(Icons.delete, color: Colors.red),
+                                    icon: Icon(Icons.archive_outlined, color: archiveColor),
+                                    tooltip: "Archiver l'élève",
                                     onPressed: () {
-                                      _showDeleteConfirmation(eleve);
+                                      _showArchiveConfirmation(eleve);
                                     },
                                   ),
                                 ),
@@ -401,56 +404,126 @@ class _EleveModifierScreenState extends State<EleveModifierScreen> {
                     ),
                   ),
           ),
-          
-          // Bottom padding
-          SliverPadding(padding: EdgeInsets.only(bottom: 20)),
         ],
-      ),
-      // Floating Action Button
-      floatingActionButton: FloatingActionButton(
-        backgroundColor: greenColor,
-        child: Icon(Icons.add),
-        onPressed: () {
-          // Navigate to add new student screen
-          print("Add new student");
-        },
       ),
     );
   }
   
-  void _showDeleteConfirmation(Map<String, dynamic> eleve) {
+  void _showArchiveConfirmation(Map<String, dynamic> eleve) {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(15),
         ),
-        title: Text(
-          "Confirmation",
-          style: TextStyle(
-            color: darkColor,
-            fontWeight: FontWeight.bold,
-          ),
+        title: Row(
+          children: [
+            Container(
+              padding: EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: archiveColor.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Icon(
+                Icons.archive_outlined,
+                color: archiveColor,
+                size: 24,
+              ),
+            ),
+            SizedBox(width: 12),
+            Text(
+              "Archiver l'élève",
+              style: TextStyle(
+                color: darkColor,
+                fontWeight: FontWeight.bold,
+                fontSize: 18,
+              ),
+            ),
+          ],
         ),
         content: Column(
           mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Container(
               padding: EdgeInsets.all(16),
               decoration: BoxDecoration(
-                color: Colors.red.withOpacity(0.1),
+                color: archiveColor.withOpacity(0.1),
                 borderRadius: BorderRadius.circular(10),
+                border: Border.all(
+                  color: archiveColor.withOpacity(0.3),
+                  width: 1,
+                ),
               ),
-              child: Icon(
-                Icons.warning_amber_rounded,
-                color: Colors.red,
-                size: 50,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Icon(
+                        Icons.person,
+                        color: archiveColor,
+                        size: 20,
+                      ),
+                      SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          "${eleve['nom']} ${eleve['prenom']}",
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 16,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  SizedBox(height: 8),
+                  Text(
+                    "ID: ${eleve['idEleve']} | ${eleve['niveau']} | Classe: ${eleve['numeroClasse']}",
+                    style: TextStyle(
+                      color: Colors.grey[600],
+                      fontSize: 12,
+                    ),
+                  ),
+                ],
               ),
             ),
             SizedBox(height: 16),
+            Container(
+              padding: EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.blue.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Icon(
+                    Icons.info_outline,
+                    color: Colors.blue,
+                    size: 20,
+                  ),
+                  SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      "L'élève sera archivé avec toutes ses données (notes, présences, remarques) et retiré de la liste active.",
+                      style: TextStyle(
+                        fontSize: 14,
+                        color: Colors.blue[800],
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            SizedBox(height: 12),
             Text(
-              "Voulez-vous vraiment supprimer l'élève ${eleve['nom']} ${eleve['prenom']}?",
-              style: TextStyle(fontSize: 16),
+              "Cette action peut être annulée en restaurant l'élève depuis l'archive.",
+              style: TextStyle(
+                fontSize: 12,
+                color: Colors.grey[600],
+                fontStyle: FontStyle.italic,
+              ),
             ),
           ],
         ),
@@ -458,24 +531,30 @@ class _EleveModifierScreenState extends State<EleveModifierScreen> {
           TextButton(
             child: Text(
               "Annuler",
-              style: TextStyle(color: Colors.grey[600]),
+              style: TextStyle(
+                color: Colors.grey[600],
+                fontWeight: FontWeight.w500,
+              ),
             ),
             onPressed: () => Navigator.pop(context),
           ),
-          ElevatedButton(
+          ElevatedButton.icon(
             style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.red,
+              backgroundColor: archiveColor,
+              foregroundColor: Colors.white,
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(8),
               ),
+              padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
             ),
-            child: Text(
-              "Supprimer",
-              style: TextStyle(color: Colors.white),
+            icon: Icon(Icons.archive_outlined, size: 18),
+            label: Text(
+              "Archiver",
+              style: TextStyle(fontWeight: FontWeight.w600),
             ),
             onPressed: () async {
               Navigator.pop(context);
-              await _deleteEleve(eleve);
+              await _archiveEleve(eleve);
             },
           ),
         ],
@@ -483,83 +562,262 @@ class _EleveModifierScreenState extends State<EleveModifierScreen> {
     );
   }
   
-  Future<void> _deleteEleve(Map<String, dynamic> eleve) async {
-  try {
-    // 1. Get the student document
-    DocumentSnapshot eleveDoc = await _db.collection('eleves').doc(eleve['idEleve']).get();
-    
-    if (!eleveDoc.exists) {
-      throw Exception("Student document not found");
+  Future<void> _archiveEleve(Map<String, dynamic> eleve) async {
+    // Show loading indicator
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => AlertDialog(
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(15),
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            CircularProgressIndicator(
+              valueColor: AlwaysStoppedAnimation<Color>(archiveColor),
+            ),
+            SizedBox(height: 16),
+            Text(
+              "Archivage en cours...",
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+            SizedBox(height: 8),
+            Text(
+              "Veuillez patienter",
+              style: TextStyle(
+                fontSize: 12,
+                color: Colors.grey[600],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+
+    try {
+      print("🔄 Starting archive process for student: ${eleve['idEleve']}");
+      
+      // 1. Get the student document
+      DocumentSnapshot eleveDoc = await _db.collection('eleves').doc(eleve['idEleve']).get();
+      
+      if (!eleveDoc.exists) {
+        throw Exception("Document élève introuvable");
+      }
+      
+      print("✅ Student document found, proceeding with archive...");
+      
+      // 2. Create archive document with all student data and timestamp
+      Map<String, dynamic> archiveData = {
+        ...eleveDoc.data() as Map<String, dynamic>,
+        'archivedAt': FieldValue.serverTimestamp(),
+        'originalId': eleve['idEleve'],
+        'archiveReason': 'Manual archive by user',
+      };
+      
+      // 3. Add to archive collection
+      await _db.collection('ARCHIVE_ELEVES').add(archiveData);
+      print("✅ Student added to archive collection");
+      
+      // 4. Delete from original collection
+      await _db.collection('eleves').doc(eleve['idEleve']).delete();
+      print("✅ Student removed from active collection");
+      
+      // 5. Remove from class if exists
+      if (eleve['classeId'] != null && eleve['classeId'].toString().isNotEmpty) {
+        try {
+          await _db.collection('classes').doc(eleve['classeId']).update({
+            "eleves.${eleve['idEleve']}": FieldValue.delete()
+          });
+          print("✅ Student removed from class");
+        } catch (classError) {
+          print("⚠️ Warning: Could not remove from class: $classError");
+          // Continue execution, this is not critical
+        }
+      }
+      
+      // 6. Batch archive references in other collections
+      WriteBatch batch = _db.batch();
+      int archivedCount = 0;
+      
+      // Archive remarques
+      try {
+        QuerySnapshot remarquesSnapshot = await _db
+            .collection('remarques')
+            .where("eleve", isEqualTo: eleve['idEleve'])
+            .get();
+            
+        for (var doc in remarquesSnapshot.docs) {
+          // Add to archive with student reference
+          await _db.collection('ARCHIVE_REMARQUES').add({
+            ...doc.data() as Map<String, dynamic>,
+            'archivedAt': FieldValue.serverTimestamp(),
+            'originalId': doc.id,
+            'eleveArchivedId': eleve['idEleve'],
+          });
+          batch.delete(doc.reference);
+          archivedCount++;
+        }
+        print("✅ Archived ${remarquesSnapshot.docs.length} remarques");
+      } catch (e) {
+        print("⚠️ Warning: Error archiving remarques: $e");
+      }
+      
+      // Archive attendance
+      try {
+        QuerySnapshot attendanceSnapshot = await _db
+            .collection('attendance')
+            .where("eleveId", isEqualTo: eleve['idEleve'])
+            .get();
+            
+        for (var doc in attendanceSnapshot.docs) {
+          await _db.collection('ARCHIVE_ATTENDANCE').add({
+            ...doc.data() as Map<String, dynamic>,
+            'archivedAt': FieldValue.serverTimestamp(),
+            'originalId': doc.id,
+            'eleveArchivedId': eleve['idEleve'],
+          });
+          batch.delete(doc.reference);
+          archivedCount++;
+        }
+        print("✅ Archived ${attendanceSnapshot.docs.length} attendance records");
+      } catch (e) {
+        print("⚠️ Warning: Error archiving attendance: $e");
+      }
+      
+      // Archive results
+      try {
+        QuerySnapshot resultsSnapshot = await _db
+            .collection('results')
+            .where("eleveId", isEqualTo: eleve['idEleve'])
+            .get();
+            
+        for (var doc in resultsSnapshot.docs) {
+          await _db.collection('ARCHIVE_RESULTS').add({
+            ...doc.data() as Map<String, dynamic>,
+            'archivedAt': FieldValue.serverTimestamp(),
+            'originalId': doc.id,
+            'eleveArchivedId': eleve['idEleve'],
+          });
+          batch.delete(doc.reference);
+          archivedCount++;
+        }
+        print("✅ Archived ${resultsSnapshot.docs.length} results");
+      } catch (e) {
+        print("⚠️ Warning: Error archiving results: $e");
+      }
+      
+      // Commit batch operations
+      await batch.commit();
+      print("✅ All related data archived successfully");
+      
+      // Close loading dialog
+      if (Navigator.canPop(context)) {
+        Navigator.pop(context);
+      }
+      
+      // Refresh the list automatically
+      await _fetchEleves();
+      print("✅ Student list refreshed");
+      
+      // Show success message
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Row(
+          children: [
+            Icon(Icons.check_circle, color: Colors.white, size: 20),
+            SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    "${eleve['nom']} ${eleve['prenom']} archivé avec succès!",
+                    style: TextStyle(
+                      fontWeight: FontWeight.w600,
+                      fontSize: 14,
+                    ),
+                  ),
+                  if (archivedCount > 0)
+                    Text(
+                      "$archivedCount données associées archivées",
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: Colors.white.withOpacity(0.9),
+                      ),
+                    ),
+                ],
+              ),
+            ),
+          ],
+        ),
+        backgroundColor: greenColor,
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(10),
+        ),
+        duration: Duration(seconds: 4),
+        margin: EdgeInsets.all(16),
+      ));
+      
+      print("🎉 Archive process completed successfully!");
+      
+    } catch (e) {
+      print("❌ Error during archive process: $e");
+      
+      // Close loading dialog if still open
+      if (Navigator.canPop(context)) {
+        Navigator.pop(context);
+      }
+      
+      // Show error message
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Row(
+          children: [
+            Icon(Icons.error, color: Colors.white, size: 20),
+            SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    "Erreur lors de l'archivage",
+                    style: TextStyle(
+                      fontWeight: FontWeight.w600,
+                      fontSize: 14,
+                    ),
+                  ),
+                  Text(
+                    "Veuillez réessayer plus tard",
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: Colors.white.withOpacity(0.9),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+        backgroundColor: Colors.red,
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(10),
+        ),
+        duration: Duration(seconds: 5),
+        margin: EdgeInsets.all(16),
+        action: SnackBarAction(
+          label: "Détails",
+          textColor: Colors.white,
+          onPressed: () {
+            print("Error details: $e");
+          },
+        ),
+      ));
     }
-    
-    // 2. Create archive document with all student data and timestamp
-    Map<String, dynamic> archiveData = {
-      ...eleveDoc.data() as Map<String, dynamic>,
-      'archivedAt': FieldValue.serverTimestamp(),
-      'originalId': eleve['idEleve'],
-    };
-    
-    // 3. Add to archive collection
-    await _db.collection('ARCHIVE_ELEVES').add(archiveData);
-    
-    // 4. Delete from original collection
-    await _db.collection('eleves').doc(eleve['idEleve']).delete();
-    
-    // 5. Remove from class if exists
-    if (eleve['classeId'] != null) {
-      await _db.collection('classes').doc(eleve['classeId']).update({
-        "eleves.${eleve['idEleve']}": FieldValue.delete()
-      });
-    }
-    
-    // 6. Batch delete references in other collections
-    WriteBatch batch = _db.batch();
-    
-    // Delete from remarques
-    QuerySnapshot remarquesSnapshot = await _db
-        .collection('remarques')
-        .where("eleve", isEqualTo: eleve['idEleve'])
-        .get();
-        
-    for (var doc in remarquesSnapshot.docs) {
-      batch.delete(doc.reference);
-    }
-    
-    // Delete from attendance
-    QuerySnapshot attendanceSnapshot = await _db
-        .collection('attendance')
-        .where("eleveId", isEqualTo: eleve['idEleve'])
-        .get();
-        
-    for (var doc in attendanceSnapshot.docs) {
-      batch.delete(doc.reference);
-    }
-    
-    // Delete from results
-    QuerySnapshot resultsSnapshot = await _db
-        .collection('results')
-        .where("eleveId", isEqualTo: eleve['idEleve'])
-        .get();
-        
-    for (var doc in resultsSnapshot.docs) {
-      batch.delete(doc.reference);
-    }
-    
-    await batch.commit();
-    
-    // Refresh the list
-    _fetchEleves();
-    
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-      content: Text("✅ Élève archivé et supprimé avec succès!"),
-      backgroundColor: greenColor,
-    ));
-  } catch (e) {
-    print("✅ Élève archivé et supprimé avec succès! $e");
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-      content: Text("✅ Élève archivé et supprimé avec succès!"),
-      backgroundColor: const Color.fromARGB(255, 54, 244, 54),
-    ));
   }
-}
 }
