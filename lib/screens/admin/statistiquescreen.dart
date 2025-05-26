@@ -39,9 +39,9 @@ class _StatistiquesEtablissementScreenState extends State<StatistiquesEtablissem
   // Variables pour la gestion des classes et élèves
   String? selectedClass;
   List<Map<String, dynamic>> classStudentsList = [];
-  List<Map<String, dynamic>> classProfsList = []; // Nouvelle liste pour les profs de classe
+  List<Map<String, dynamic>> classProfsList = [];
   bool isLoadingClassStudents = false;
-  bool isLoadingClassProfs = false; // Nouveau flag pour le chargement des profs
+  bool isLoadingClassProfs = false;
   bool isLoadingClasses = true;
   String? selectedClassNumber;
   
@@ -156,7 +156,6 @@ class _StatistiquesEtablissementScreenState extends State<StatistiquesEtablissem
     });
   }
   
-  // Fonctions pour la gestion des classes dans l'onglet Classes
   Future<void> _loadClassesForTab() async {
     setState(() {
       isLoadingClasses = true;
@@ -175,7 +174,6 @@ class _StatistiquesEtablissementScreenState extends State<StatistiquesEtablissem
         };
       }).toList();
 
-      // Trier les classes par numéro
       classes.sort((a, b) => a['numeroClasse'].compareTo(b['numeroClasse']));
 
       setState(() {
@@ -216,7 +214,6 @@ class _StatistiquesEtablissementScreenState extends State<StatistiquesEtablissem
         });
       }
 
-      // Trier les élèves par nom
       students.sort((a, b) => a['nomComplet'].compareTo(b['nomComplet']));
 
       setState(() {
@@ -231,7 +228,7 @@ class _StatistiquesEtablissementScreenState extends State<StatistiquesEtablissem
     }
   }
 
-  // Nouvelle fonction pour charger les professeurs d'une classe
+  // Fonction corrigée pour charger les professeurs par classId
   Future<void> _loadProfsForClass(String classNumber) async {
     setState(() {
       isLoadingClassProfs = true;
@@ -239,50 +236,31 @@ class _StatistiquesEtablissementScreenState extends State<StatistiquesEtablissem
     });
 
     try {
-      // Récupérer la classe par son numéro
-      QuerySnapshot classSnapshot = await _db
-          .collection('classes')
+      // Chercher les professeurs qui ont ce numéro de classe
+      QuerySnapshot profsSnapshot = await _db
+          .collection('profs')
           .where('numeroClasse', isEqualTo: classNumber)
           .get();
 
-      if (classSnapshot.docs.isNotEmpty) {
-        Map<String, dynamic> classData = classSnapshot.docs.first.data() as Map<String, dynamic>;
-        List<dynamic> profsIds = classData['profs'] ?? [];
+      List<Map<String, dynamic>> profs = [];
 
-        List<Map<String, dynamic>> profs = [];
-
-        // Récupérer les détails de chaque professeur
-        for (String profId in profsIds) {
-          try {
-            DocumentSnapshot profDoc = await _db.collection('profs').doc(profId).get();
-            if (profDoc.exists) {
-              Map<String, dynamic> profData = profDoc.data() as Map<String, dynamic>;
-              profs.add({
-                'id': profDoc.id,
-                'nom': profData['nom'] ?? '',
-                'prenom': profData['prenom'] ?? '',
-                'nomComplet': "${profData['prenom'] ?? ''} ${profData['nom'] ?? ''}",
-                'matiere': profData['matiere'] ?? 'Non spécifiée',
-              });
-            }
-          } catch (e) {
-            print("Erreur lors du chargement du professeur $profId: $e");
-          }
-        }
-
-        // Trier les professeurs par nom
-        profs.sort((a, b) => a['nomComplet'].compareTo(b['nomComplet']));
-
-        setState(() {
-          classProfsList = profs;
-          isLoadingClassProfs = false;
-        });
-      } else {
-        setState(() {
-          classProfsList = [];
-          isLoadingClassProfs = false;
+      for (var profDoc in profsSnapshot.docs) {
+        Map<String, dynamic> profData = profDoc.data() as Map<String, dynamic>;
+        profs.add({
+          'id': profDoc.id,
+          'nom': profData['nom'] ?? '',
+          'prenom': profData['prenom'] ?? '',
+          'nomComplet': "${profData['prenom'] ?? ''} ${profData['nom'] ?? ''}",
+          'matiere': profData['matiere'] ?? 'Non spécifiée',
         });
       }
+
+      profs.sort((a, b) => a['nomComplet'].compareTo(b['nomComplet']));
+
+      setState(() {
+        classProfsList = profs;
+        isLoadingClassProfs = false;
+      });
     } catch (e) {
       print("Erreur lors du chargement des professeurs: $e");
       setState(() {
@@ -446,7 +424,6 @@ class _StatistiquesEtablissementScreenState extends State<StatistiquesEtablissem
         padding: EdgeInsets.all(16),
         child: Column(
           children: [
-            // Sélecteur de classe
             Card(
               elevation: 3,
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
@@ -456,11 +433,7 @@ class _StatistiquesEtablissementScreenState extends State<StatistiquesEtablissem
                   children: [
                     Text(
                       "Sélectionnez une classe",
-                      style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                        color: orangeColor,
-                      ),
+                      style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: orangeColor),
                     ),
                     SizedBox(height: 10),
                     if (isLoadingClasses)
@@ -476,7 +449,6 @@ class _StatistiquesEtablissementScreenState extends State<StatistiquesEtablissem
             
             SizedBox(height: 20),
             
-            // Professeurs de la classe sélectionnée
             if (selectedClassNumber != null)
               Card(
                 elevation: 3,
@@ -487,11 +459,7 @@ class _StatistiquesEtablissementScreenState extends State<StatistiquesEtablissem
                     children: [
                       Text(
                         "Professeurs de la classe $selectedClassNumber",
-                        style: TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
-                          color: orangeColor,
-                        ),
+                        style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: orangeColor),
                       ),
                       SizedBox(height: 10),
                       if (isLoadingClassProfs)
@@ -507,7 +475,6 @@ class _StatistiquesEtablissementScreenState extends State<StatistiquesEtablissem
             
             SizedBox(height: 20),
             
-            // Liste des élèves de la classe sélectionnée
             if (selectedClassNumber != null)
               Card(
                 elevation: 3,
@@ -518,11 +485,7 @@ class _StatistiquesEtablissementScreenState extends State<StatistiquesEtablissem
                     children: [
                       Text(
                         "Élèves de la classe $selectedClassNumber",
-                        style: TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
-                          color: greenColor,
-                        ),
+                        style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: greenColor),
                       ),
                       SizedBox(height: 10),
                       if (isLoadingClassStudents)
@@ -562,13 +525,12 @@ class _StatistiquesEtablissementScreenState extends State<StatistiquesEtablissem
         });
         if (value != null) {
           _loadStudentsForClass(value);
-          _loadProfsForClass(value); // Charger aussi les professeurs
+          _loadProfsForClass(value);
         }
       },
     );
   }
 
-  // Nouveau widget pour afficher la liste des professeurs
   Widget _buildProfList() {
     return ListView.builder(
       shrinkWrap: true,

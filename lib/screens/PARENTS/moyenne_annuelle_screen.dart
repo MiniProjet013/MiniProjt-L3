@@ -245,7 +245,7 @@ class _MoyenneAnnuelleScreenState extends State<MoyenneAnnuelleScreen> {
                 ),
               ),
               child: Text(
-                overallAverage.toStringAsFixed(2),
+                '${overallAverage.toStringAsFixed(2)}', // Modifié pour afficher /10
                 style: TextStyle(
                   fontSize: 32,
                   fontWeight: FontWeight.bold,
@@ -331,7 +331,7 @@ class _MoyenneAnnuelleScreenState extends State<MoyenneAnnuelleScreen> {
                       ),
                       DataCell(
                         Text(
-                          avg['examen'].toStringAsFixed(2),
+                          '${avg['examen'].toStringAsFixed(2)}', // Modifié pour afficher /10
                           style: TextStyle(
                             color: _getNoteColor(avg['examen']),
                           ),
@@ -339,7 +339,7 @@ class _MoyenneAnnuelleScreenState extends State<MoyenneAnnuelleScreen> {
                       ),
                       DataCell(
                         Text(
-                          avg['devoir'].toStringAsFixed(2),
+                          '${avg['devoir'].toStringAsFixed(2)}', // Modifié pour afficher /10
                           style: TextStyle(
                             color: _getNoteColor(avg['devoir']),
                           ),
@@ -353,7 +353,7 @@ class _MoyenneAnnuelleScreenState extends State<MoyenneAnnuelleScreen> {
                             borderRadius: BorderRadius.circular(12),
                           ),
                           child: Text(
-                            avg['moyenne'].toStringAsFixed(2),
+                            '${avg['moyenne'].toStringAsFixed(2)}', // Modifié pour afficher /10
                             style: TextStyle(
                               fontWeight: FontWeight.bold,
                               color: _getGradeColor(avg['moyenne']),
@@ -483,9 +483,9 @@ class _MoyenneAnnuelleScreenState extends State<MoyenneAnnuelleScreen> {
     List<String> weakPoints = [];
     
     for (var avg in averages) {
-      if (avg['moyenne'] >= 14) {
+      if (avg['moyenne'] >= 7) { // Modifié pour système sur 10
         strongPoints.add(avg['matiere']);
-      } else if (avg['moyenne'] < 10) {
+      } else if (avg['moyenne'] < 5) { // Modifié pour système sur 10
         weakPoints.add(avg['matiere']);
       }
     }
@@ -493,33 +493,32 @@ class _MoyenneAnnuelleScreenState extends State<MoyenneAnnuelleScreen> {
     return (strongPoints, weakPoints);
   }
 
-  // Fonction pour obtenir une appréciation textuelle
+  // Fonction pour obtenir une appréciation textuelle (adaptée pour 10)
   String _getAppreciation(double moyenne) {
-    if (moyenne >= 16) return 'Excellente performance ! Continue comme ça !';
-    if (moyenne >= 14) return 'Très bon travail, tu peux encore progresser !';
-    if (moyenne >= 12) return 'Bon travail, quelques efforts supplémentaires seraient bénéfiques.';
-    if (moyenne >= 10) return 'Résultats corrects, mais des progrès sont nécessaires.';
+    if (moyenne >= 8) return 'Excellente performance ! Continue comme ça !';
+    if (moyenne >= 7) return 'Très bon travail, tu peux encore progresser !';
+    if (moyenne >= 6) return 'Bon travail, quelques efforts supplémentaires seraient bénéfiques.';
+    if (moyenne >= 5) return 'Résultats corrects, mais des progrès sont nécessaires.';
     return 'Des efforts importants sont nécessaires pour améliorer tes résultats.';
   }
 
-  // Fonction pour obtenir la couleur en fonction de la note
+  // Fonction pour obtenir la couleur en fonction de la note (adaptée pour 10)
   Color _getNoteColor(double note) {
-    if (note >= 16) return const Color(0xFF4CAF50); // Vert
-    if (note >= 12) return const Color(0xFF8BC34A); // Vert clair
-    if (note >= 8) return const Color(0xFFFFA726);  // Orange
+    if (note >= 8) return const Color(0xFF4CAF50); // Vert
+    if (note >= 6) return const Color(0xFF8BC34A); // Vert clair
+    if (note >= 4) return const Color(0xFFFFA726);  // Orange
     return const Color(0xFFF44336);  // Rouge
   }
 
-  // Fonction pour obtenir la couleur en fonction de la moyenne
+  // Fonction pour obtenir la couleur en fonction de la moyenne (adaptée pour 10)
   Color _getGradeColor(double? grade) {
     if (grade == null) return Colors.grey;
-    if (grade >= 16) return const Color(0xFF4CAF50); // Vert
-    if (grade >= 14) return const Color(0xFF8BC34A); // Vert clair
-    if (grade >= 12) return const Color(0xFFFFA726); // Orange
+    if (grade >= 8) return const Color(0xFF4CAF50); // Vert
+    if (grade >= 7) return const Color(0xFF8BC34A); // Vert clair
+    if (grade >= 6) return const Color(0xFFFFA726); // Orange
     return const Color(0xFFF44336); // Rouge
   }
 
-  // Les autres méthodes (_fetchStudentAverages, _calculateOverallAverage, _extractNotes) restent inchangées
   Future<List<Map<String, dynamic>>> _fetchStudentAverages() async {
     List<Map<String, dynamic>> allAverages = [];
 
@@ -534,12 +533,13 @@ class _MoyenneAnnuelleScreenState extends State<MoyenneAnnuelleScreen> {
 
     for (var exam in examens) {
       String matiere = exam['matiere'];
-      double examNote = exam['note'];
+      // Convertir la note d'examen de 20 à 10
+      double examNote = (exam['note'] ?? 0.0) / 2;
 
       double devoirNote = devoirs.firstWhere(
             (devoir) => devoir['matiere'] == matiere,
         orElse: () => {'note': 0.0},
-      )['note'];
+      )['note'] / 2; // Convertir la note de devoir de 20 à 10
 
       double moyenne = ['Arabe', 'Français', 'Math'].contains(matiere)
           ? (examNote + devoirNote) / 2

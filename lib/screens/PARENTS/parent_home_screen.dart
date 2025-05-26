@@ -43,57 +43,60 @@ class _ParentHomeScreenState extends State<ParentHomeScreen> {
   late String currentSubheading;
   late String dateTime;
 
-  final List<Map<String, dynamic>> categories = [
-    {
-      "title": "Notes",
-      "icon": Icons.score,
-      "route": (String studentId) => VoirNotesScreen(studentId: studentId)
-    },
-    {
-      "title": "Absences",
-      "icon": Icons.event_busy,
-      "route": (String studentId) => AbsencesScreen(eleveId: studentId)
-    }, 
-    {
-      "title": "Emploi du temps",
-      "icon": Icons.calendar_today,
-      "route": (String studentId) => EmploiTempsScreen(
-      eleveId: "id_eleve",
-      classeId: "id_classe", 
-      schoolYear: "2024-2025",
-      level: "1ère année",
-    ),
-    },
-    {
-      "title": "Devoirs",
-      "icon": Icons.assignment,
-      "route": (String studentId) => HomeworkScreen(studentId: studentId)
-    },
-    {
-      "title": "Remarques",
-      "icon": Icons.comment,
-      "route": (String studentId) => ConvocationScreen(eleveId: studentId)
-    },
-    {
-      "title": "Convocation",
-      "icon": Icons.notifications,
-      "route": (String studentId) => RemarquesParentScreen(eleveId: studentId)
-    },
-    {
-      "title": "Événements",
-      "icon": Icons.event,
-      "route": (String studentId) => EvenementsPage()
-    },
-  ];
-
-  final CollectionReference elevesCollection =
-      FirebaseFirestore.instance.collection('eleves');
+  late final List<Map<String, dynamic>> categories;
 
   @override
   void initState() {
     super.initState();
     _updatePhrases();
-    
+
+    categories = [
+      {
+        "title": "Notes",
+        "icon": Icons.score,
+        "route": (String studentId) => VoirNotesScreen(studentId: studentId)
+      },
+      {
+        "title": "Absences",
+        "icon": Icons.event_busy,
+        "route": (String studentId) => AbsencesScreen(eleveId: studentId)
+      },
+      {
+        "title": "Emploi du temps",
+        "icon": Icons.calendar_today,
+        "route": (String studentId) {
+          final enfant = enfants[studentId];
+          final classeId = enfant != null ? enfant['classeId'] ?? '' : '';
+          final anneeScolaire = enfant != null ? enfant['anneeScolaire'] ?? '' : '';
+          return ScheduleScreen(
+            eleveId: studentId,
+            classeId: classeId,
+            anneeScolaire: anneeScolaire,
+          );
+        },
+      },
+      {
+        "title": "Devoirs",
+        "icon": Icons.assignment,
+        "route": (String studentId) => HomeworkScreen(studentId: studentId)
+      },
+      {
+        "title": "Remarques",
+        "icon": Icons.comment,
+        "route": (String studentId) => ConvocationScreen(eleveId: studentId)
+      },
+      {
+        "title": "Convocation",
+        "icon": Icons.notifications,
+        "route": (String studentId) => RemarquesParentScreen(eleveId: studentId)
+      },
+      {
+        "title": "Événements",
+        "icon": Icons.event,
+        "route": (String studentId) => EvenementsPage()
+      },
+    ];
+
     if (widget.enfantsPreverifies != null && widget.enfantsPreverifies!.isNotEmpty) {
       setState(() {
         enfants = widget.enfantsPreverifies!;
@@ -115,6 +118,10 @@ class _ParentHomeScreenState extends State<ParentHomeScreen> {
       });
     }
   }
+
+  final CollectionReference elevesCollection =
+      FirebaseFirestore.instance.collection('eleves');
+
 
   void _updatePhrases() {
     final random = Random();

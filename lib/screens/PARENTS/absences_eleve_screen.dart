@@ -189,11 +189,8 @@ class _AbsencesScreenState extends State<AbsencesScreen> {
   Widget build(BuildContext context) {
     List<Map<String, dynamic>> filteredAbsences = _filterAbsencesByPeriod(currentPeriod);
     
-    // Calculer les statistiques
+    // Calculer les statistiques (إزالة الإحصائيات غير المرغوبة)
     int totalAbsences = filteredAbsences.length;
-    int justifiees = filteredAbsences.where((a) => a['statut'] == 'Justifiée').length;
-    int nonJustifiees = filteredAbsences.where((a) => a['statut'] == 'Non justifiée').length;
-    int enAttente = filteredAbsences.where((a) => a['statut'] == 'En attente').length;
     
     return Scaffold(
       body: Container(
@@ -322,7 +319,7 @@ class _AbsencesScreenState extends State<AbsencesScreen> {
 
               SizedBox(height: 16),
 
-              // Statistiques des absences
+              // Statistiques des absences (إزالة البطاقات غير المرغوبة)
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 16.0),
                 child: Row(
@@ -332,20 +329,6 @@ class _AbsencesScreenState extends State<AbsencesScreen> {
                       'Total',
                       Colors.blue,
                       Icons.calendar_today,
-                    ),
-                    SizedBox(width: 8),
-                    _buildStatisticCard(
-                      justifiees.toString(),
-                      'Justifiées',
-                      Colors.green,
-                      Icons.check_circle,
-                    ),
-                    SizedBox(width: 8),
-                    _buildStatisticCard(
-                      nonJustifiees.toString(),
-                      'Non justifiées',
-                      Colors.red,
-                      Icons.cancel,
                     ),
                   ],
                 ),

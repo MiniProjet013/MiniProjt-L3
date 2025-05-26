@@ -152,7 +152,6 @@ class _EmploiExamensScreenState extends State<EmploiExamensScreen> {
             padding: EdgeInsets.all(20),
             sliver: SliverList(
               delegate: SliverChildListDelegate([
-                // Le reste du code UI reste inchangé...
                 // Calendrier pour sélectionner la date
                 Container(
                   margin: EdgeInsets.only(bottom: 16),
@@ -657,7 +656,7 @@ class _EmploiExamensScreenState extends State<EmploiExamensScreen> {
         'startTime': startTime!.format(context),
         'endTime': endTime!.format(context),
         'subject': selectedSubject,
-        'salle': selectedClass, // La salle est automatiquement remplie avec la classe
+        'salle': selectedClass,
         'timestamp': DateTime.now(),
       });
 
@@ -673,7 +672,7 @@ class _EmploiExamensScreenState extends State<EmploiExamensScreen> {
     });
   }
 
-  // Méthode modifiée pour la nouvelle structure Firestore
+  // Structure Firestore simplifiée : examens/{docId}
   Future<void> _saveSchedule() async {
     if (examsSchedule.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -689,41 +688,26 @@ class _EmploiExamensScreenState extends State<EmploiExamensScreen> {
     try {
       final batch = FirebaseFirestore.instance.batch();
       
-      // Regrouper les examens par matière
-      Map<String, List<Map<String, dynamic>>> examsBySubject = {};
-      
+      // Sauvegarder chaque examen directement dans la collection 'examens'
       for (final exam in examsSchedule) {
-        final String subject = exam['subject'];
-        if (!examsBySubject.containsKey(subject)) {
-          examsBySubject[subject] = [];
-        }
-        examsBySubject[subject]!.add(exam);
-      }
-      
-      // Sauvegarder les examens avec la nouvelle structure
-      for (final exam in examsSchedule) {
-        // Chemin: school_years/{anneeScolaire}/levels/{niveau}/exams/{examId}
-        final schoolYearRef = FirebaseFirestore.instance
-            .collection('school_years')
-            .doc(exam['anneeScolaire']);
-            
-        final levelRef = schoolYearRef
-            .collection('levels')
-            .doc(exam['level']);
-            
-        final examRef = levelRef
-            .collection('exams')
+        final examRef = FirebaseFirestore.instance
+            .collection('examens')
             .doc(); // Firestore génère un ID unique
         
-        // Données de l'examen
+        // Données complètes de l'examen avec toutes les informations
         final examData = {
-          'matiere': exam['subject'],
+          'anneeScolaire': exam['anneeScolaire'],
+          'niveau': exam['level'],
           'classe': exam['class'],
+          'matiere': exam['subject'],
           'date': exam['date'],
           'heureDebut': exam['startTime'],
           'heureFin': exam['endTime'],
           'salle': exam['salle'],
-          'timestamp': FieldValue.serverTimestamp(),
+          'dateCreation': FieldValue.serverTimestamp(),
+          'dateModification': FieldValue.serverTimestamp(),
+          'statut': 'programmé',
+          'type': 'examen',
         };
         
         batch.set(examRef, examData);
@@ -751,15 +735,12 @@ class _EmploiExamensScreenState extends State<EmploiExamensScreen> {
     }
   }
 
-  // Méthode pour récupérer les examens d'un niveau spécifique
-  Future<List<Map<String, dynamic>>> getExamsByLevel(String anneeScolaire, String niveau) async {
+  // Méthode pour récupérer les examens par année scolaire
+  Future<List<Map<String, dynamic>>> getExamsByYear(String anneeScolaire) async {
     try {
       final QuerySnapshot snapshot = await FirebaseFirestore.instance
-          .collection('school_years')
-          .doc(anneeScolaire)
-          .collection('levels')
-          .doc(niveau)
-          .collection('exams')
+          .collection('examens')
+          .where('anneeScolaire', isEqualTo: anneeScolaire)
           .orderBy('date')
           .get();
           
@@ -776,15 +757,58 @@ class _EmploiExamensScreenState extends State<EmploiExamensScreen> {
     }
   }
 
-  // Méthode pour récupérer les examens d'une matière spécifique
-  Future<List<Map<String, dynamic>>> getExamsBySubject(String anneeScolaire, String niveau, String matiere) async {
+  // Méthode pour récupérer les examens par niveau
+  Future<List<Map<String, dynamic>>> getExamsByLevel(String anneeScolaire, String niveau) async {
     try {
       final QuerySnapshot snapshot = await FirebaseFirestore.instance
-          .collection('school_years')
-          .doc(anneeScolaire)
-          .collection('levels')
-          .doc(niveau)
-          .collection('exams')
+          .collection('examens')
+          .where('anneeScolaire', isEqualTo: anneeScolaire)
+          .where('niveau', isEqualTo: niveau)
+          .orderBy('date')
+          .get();
+          
+      return snapshot.docs.map((doc) {
+        final data = doc.data() as Map<String, dynamic>;
+        return {
+          'id': doc.id,
+          ...data,
+        };
+      }).toList();
+    } catch (e) {
+      print("Erreur lors de la récupération des examens: $e");
+      return [];
+    }
+  }
+
+  // Méthode pour récupérer les examens par classe
+  Future<List<Map<String, dynamic>>> getExamsByClass(String anneeScolaire, String classe) async {
+    try {
+      final QuerySnapshot snapshot = await FirebaseFirestore.instance
+          .collection('examens')
+          .where('anneeScolaire', isEqualTo: anneeScolaire)
+          .where('classe', isEqualTo: classe)
+          .orderBy('date')
+          .get();
+          
+      return snapshot.docs.map((doc) {
+        final data = doc.data() as Map<String, dynamic>;
+        return {
+          'id': doc.id,
+          ...data,
+        };
+      }).toList();
+    } catch (e) {
+      print("Erreur lors de la récupération des examens: $e");
+      return [];
+    }
+  }
+
+  // Méthode pour récupérer les examens par matière
+  Future<List<Map<String, dynamic>>> getExamsBySubject(String anneeScolaire, String matiere) async {
+    try {
+      final QuerySnapshot snapshot = await FirebaseFirestore.instance
+          .collection('examens')
+          .where('anneeScolaire', isEqualTo: anneeScolaire)
           .where('matiere', isEqualTo: matiere)
           .orderBy('date')
           .get();
@@ -799,6 +823,59 @@ class _EmploiExamensScreenState extends State<EmploiExamensScreen> {
     } catch (e) {
       print("Erreur lors de la récupération des examens: $e");
       return [];
+    }
+  }
+
+  // Méthode pour récupérer les examens par date
+  Future<List<Map<String, dynamic>>> getExamsByDate(String date) async {
+    try {
+      final QuerySnapshot snapshot = await FirebaseFirestore.instance
+          .collection('examens')
+          .where('date', isEqualTo: date)
+          .orderBy('heureDebut')
+          .get();
+          
+      return snapshot.docs.map((doc) {
+        final data = doc.data() as Map<String, dynamic>;
+        return {
+          'id': doc.id,
+          ...data,
+        };
+      }).toList();
+    } catch (e) {
+      print("Erreur lors de la récupération des examens: $e");
+      return [];
+    }
+  }
+
+  // Méthode pour mettre à jour un examen
+  Future<bool> updateExam(String examId, Map<String, dynamic> updatedData) async {
+    try {
+      await FirebaseFirestore.instance
+          .collection('examens')
+          .doc(examId)
+          .update({
+            ...updatedData,
+            'dateModification': FieldValue.serverTimestamp(),
+          });
+      return true;
+    } catch (e) {
+      print("Erreur lors de la mise à jour de l'examen: $e");
+      return false;
+    }
+  }
+
+  // Méthode pour supprimer un examen
+  Future<bool> deleteExam(String examId) async {
+    try {
+      await FirebaseFirestore.instance
+          .collection('examens')
+          .doc(examId)
+          .delete();
+      return true;
+    } catch (e) {
+      print("Erreur lors de la suppression de l'examen: $e");
+      return false;
     }
   }
 

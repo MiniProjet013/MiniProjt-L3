@@ -106,7 +106,7 @@ class _EnseignantHomeScreenState extends State<EnseignantHomeScreen> {
     {
       "title": "Emploi du temps",
       "icon": Icons.calendar_month,
-      "route": ScheduleScreen()
+      "route":ProfScheduleScreen()
     },
     {
       "title": "Liste d'élèves",

@@ -536,18 +536,8 @@ class _AbsencesScreenState extends State<AbsencesScreen> {
                             ),
                           ),
           ),
-          
-          // Espacement en bas
-          //SliverToBoxAdapter(child: SizedBox(height: 80)),
         ],
       ),
-     /* floatingActionButton: FloatingActionButton(
-        onPressed: () {
-          // Navigation pour ajouter une nouvelle absence
-        },
-        backgroundColor: orangeColor,
-        child: Icon(Icons.add, color: Colors.white),
-      ),*/
     );
   }
 
@@ -756,37 +746,6 @@ class _AbsencesScreenState extends State<AbsencesScreen> {
                       ),
                     ),
                   ],
-                ),
-              ],
-            ),
-          ),
-          
-          // Boutons d'actions
-          Padding(
-            padding: const EdgeInsets.fromLTRB(8, 0, 8, 8),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.end,
-              children: [
-                TextButton.icon(
-                  onPressed: () {
-                    // Fonction pour justifier l'absence
-                  },
-                  icon: Icon(Icons.fact_check, color: greenColor),
-                  label: Text(
-                    'Justifiée',
-                    style: TextStyle(color: greenColor),
-                  ),
-                ),
-                SizedBox(width: 8),
-                TextButton.icon(
-                  onPressed: () {
-                    // Fonction pour notifier les parents
-                  },
-                  icon: Icon(Icons.notifications_active, color: orangeColor),
-                  label: Text(
-                    'Notifier',
-                    style: TextStyle(color: orangeColor),
-                  ),
                 ),
               ],
             ),

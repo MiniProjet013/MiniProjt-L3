@@ -368,7 +368,7 @@ class _NotesDevoirsScreenState extends State<NotesDevoirsScreen> with SingleTick
                     borderRadius: BorderRadius.circular(16),
                   ),
                   child: Text(
-                    '${noteValue.toStringAsFixed(1)}/20',
+                    '${noteValue.toStringAsFixed(1)}/10',
                     style: TextStyle(
                       color: noteColor,
                       fontWeight: FontWeight.bold,
@@ -474,9 +474,9 @@ class _NotesDevoirsScreenState extends State<NotesDevoirsScreen> with SingleTick
   }
 
   Color _getNoteColor(double note) {
-    if (note >= 16) return const Color(0xFF4CAF50); // Vert
-    if (note >= 12) return const Color(0xFF8BC34A); // Vert clair
-    if (note >= 8) return const Color(0xFFFFA726);  // Orange
+    if (note >= 8) return const Color(0xFF4CAF50); // Vert
+    if (note >= 6) return const Color(0xFF8BC34A); // Vert clair
+    if (note >= 5) return const Color(0xFFFFA726);  // Orange
     return const Color(0xFFF44336);  // Rouge
   }
 

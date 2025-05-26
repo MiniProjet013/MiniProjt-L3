@@ -223,7 +223,7 @@ class _HomeworkScreenState extends State<HomeworkScreen> {
               child: Icon(Icons.delete, color: Colors.red),
             ),
             SizedBox(width: 12),
-            Text('Confirmer la suppression'),
+            Text('Confirmer'),
           ],
         ),
         content: Text(
